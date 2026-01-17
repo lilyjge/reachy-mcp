@@ -1,0 +1,14 @@
+{
+	"servers": {
+"reachy-mini-panorama": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/reachy_mini_env/bin/python",
+      "args": ["reachy_color_scan_mcp.py"],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}",
+        "PYTHONUNBUFFERED": "1"
+      },
+    }
+	},
+	"inputs": []
+}

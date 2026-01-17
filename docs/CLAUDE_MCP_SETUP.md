@@ -18,10 +18,12 @@ Turn Reachy Mini into a multimodal scout that can collect photos on demand for C
 python reachy_color_scan_mcp.py
 ```
 
-The server exposes two tools:
+The server exposes four tools:
 
-1. `scan_surroundings` – Spins the head across evenly spaced yaw angles, captures multiple photos, and returns each frame as a data URI (unless you set `inline_data=False`). The metadata includes the yaw angle and file path for each shot.
+1. `scan_surroundings` – Spins Reachy Mini’s torso and head together across evenly spaced yaw angles, captures multiple photos, and returns lightweight preview data URIs (unless you set `inline_data=False`). The metadata includes the yaw angle and file path for each shot.
 2. `list_recent_scans` – Returns cached manifests so Claude can recover a `scanId` or re-download files.
+3. `get_scan_images` – Re-encodes the images from a given (or the most recent) scan into compressed previews so Claude can inspect them later without rerunning a sweep.
+4. `speak_text` – Synthesizes a short message (via `pyttsx3` if installed, otherwise macOS `say`) and plays it through Reachy Mini’s onboard speaker.
 
 Every capture session is stored under `reachy_captures/<scanId>/shot_XX_yaw_±YY.jpg` alongside a `manifest.json` summary.
 
@@ -55,4 +57,14 @@ Claude can then call `scan_surroundings` whenever a user asks “Find something 
 2. Claude: Calls `scan_surroundings` with `color_prompt="find something blue"`.
 3. Claude inspects the returned data URIs to reason about each frame, then answers the user with coordinates such as “At yaw +45° there is a blue notebook.”
 
-Set `inline_data=False` if you prefer to keep responses lightweight and let Claude fetch files only when it needs them.
+Inline previews are auto-resized (max 640px wide) and JPEG-compressed so tool payloads stay below Claude’s 1 MB limit. Set `inline_data=False` if you want to return only file paths—Claude can always call `get_scan_images` or `resources.readResource` later to fetch the compressed previews.
+
+### Giving Reachy Mini a voice
+
+To use `speak_text`, install `pyttsx3` (cross-platform) **or** rely on macOS’s built-in `say` binary. Example install:
+
+```bash
+pip install pyttsx3
+```
+
+Claude can then respond with natural phrases like “The blue mug is on the right” while the MCP server streams the synthesized audio directly to Reachy Mini’s speaker.
