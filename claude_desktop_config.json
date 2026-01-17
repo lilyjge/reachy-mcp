@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "reachy-mini-panorama": {
+      "command": "/Users/james/Desktop/reachy-mcp/reachy_mini_env/bin/python",
+      "args": ["reachy_color_scan_mcp.py"],
+      "env": {
+        "PYTHONPATH": "/Users/james/Desktop/reachy-mcp"
+      }
+    }
+  }
+}
