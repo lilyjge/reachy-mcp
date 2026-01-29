@@ -5,6 +5,8 @@ Run from the repository root:
 """
 
 from time import sleep
+from threading import Thread
+
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from reachy_mini import ReachyMini
@@ -13,6 +15,12 @@ import cv2
 from pocket_tts import TTSModel
 import scipy.io.wavfile
 from sound_play import play
+from reachy_mini.motion.recorded_move import RecordedMoves
+
+EMOTIONS_DATASET = "pollen-robotics/reachy-mini-emotions-library"
+recorded_emotions = RecordedMoves(EMOTIONS_DATASET)
+move_names = recorded_emotions.list_moves()
+moves_and_descriptions = {name: recorded_emotions.get(name).description for name in move_names}
 
 mcp = FastMCP("Reachy Mini Robot")
 
@@ -78,12 +86,33 @@ def speak(text: str) -> None:
     """Speak words using text to speech with Reachy Mini's speaker."""
     tts_model = TTSModel.load_model()
     voice_state = tts_model.get_state_for_audio_prompt(
-        "cosette"
+        "azelma"
     )
     audio = tts_model.generate_audio(voice_state, text)
     # Audio is a 1D torch tensor containing PCM data.
     scipy.io.wavfile.write("output.wav", tts_model.sample_rate, audio.numpy())
     play("output.wav")
+
+@mcp.tool()
+def list_emotions() -> dict[str, str]:
+    """List all emotions available in the emotions library."""
+    return moves_and_descriptions
+
+def _play_emotion_worker(emotion: str) -> None:
+    """Internal helper to play an emotion in a separate thread."""
+    with ReachyMini() as mini:
+        move = recorded_emotions.get(emotion)
+        mini.play_move(move, initial_goto_duration=0.7)
+
+
+@mcp.tool()
+def play_emotion(emotion: str) -> None:
+    """Play an emotion.
+
+    Runs in a background thread to avoid AsyncToSync being used
+    from the same thread as the FastMCP async event loop.
+    """
+    Thread(target=_play_emotion_worker, args=(emotion,), daemon=True).start()
 
 # Run with streamable HTTP transport
 if __name__ == "__main__":
