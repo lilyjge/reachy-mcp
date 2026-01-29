@@ -9,9 +9,10 @@ from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from reachy_mini import ReachyMini
 from reachy_mini.utils import create_head_pose
-from PIL import Image as PILImage
 import cv2
-
+from pocket_tts import TTSModel
+import scipy.io.wavfile
+from sound_play import play
 
 mcp = FastMCP("Reachy Mini Robot")
 
@@ -71,6 +72,18 @@ def take_picture() -> None:
         print(cv2.imwrite("reachy2.jpg", frame))
         return Image(path="reachy2.jpg")
 
+
+@mcp.tool()
+def speak(text: str) -> None:
+    """Speak words using text to speech with Reachy Mini's speaker."""
+    tts_model = TTSModel.load_model()
+    voice_state = tts_model.get_state_for_audio_prompt(
+        "cosette"
+    )
+    audio = tts_model.generate_audio(voice_state, text)
+    # Audio is a 1D torch tensor containing PCM data.
+    scipy.io.wavfile.write("output.wav", tts_model.sample_rate, audio.numpy())
+    play("output.wav")
 
 # Run with streamable HTTP transport
 if __name__ == "__main__":
