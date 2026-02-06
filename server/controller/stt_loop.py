@@ -5,14 +5,21 @@ the user finishes speaking, not on fixed time intervals.
 """
 
 from __future__ import annotations
+import io
 import os
 import threading
 import time
+import wave
 import numpy as np
 import scipy.signal
-
+import dotenv
 import httpx
 from reachy_mini import ReachyMini
+dotenv.load_dotenv()
+
+# Groq speech-to-text (OpenAI-compatible)
+GROQ_TRANSCRIPTIONS_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
+GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
 # Where to POST transcribed text (client endpoint)
 STT_URL = os.environ.get("STT_CALLBACK_URL", "http://localhost:8765/stt")
@@ -28,13 +35,18 @@ MIN_SPEECH_DURATION_SEC = 0.5
 POLL_INTERVAL = 0.1
 
 
-def _load_whisper_model():
-    """Load whisper model once; returns None if whisper not installed."""
-    try:
-        import whisper
-        return whisper.load_model("tiny")
-    except ImportError:
-        return None
+def _float32_to_wav_bytes(audio: np.ndarray, sample_rate: int) -> bytes:
+    """Convert float32 mono audio to 16-bit PCM WAV bytes."""
+    # Clamp and convert to int16
+    audio = np.clip(audio, -1.0, 1.0)
+    pcm = (audio * 32767).astype(np.int16)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)  # 16-bit
+        wav.setframerate(sample_rate)
+        wav.writeframes(pcm.tobytes())
+    return buf.getvalue()
 
 
 def _load_vad_model():
@@ -75,27 +87,36 @@ def _has_speech_simple(audio_chunk: np.ndarray, sample_rate: int) -> bool:
     return rms > threshold
 
 
-def _transcribe(audio_data: np.ndarray, sample_rate: int, model=None) -> str:
-    """Convert audio to text. Uses whisper if available; otherwise returns empty string."""
+def _transcribe(audio_data: np.ndarray, sample_rate: int) -> str:
+    """Convert audio to text via Groq API (OpenAI-compatible transcriptions endpoint)."""
     if audio_data.size == 0:
         return ""
-    if model is None:
-        model = _load_whisper_model()
-    if model is None:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
         return ""
-    # Whisper's file-path flow shells out to `ffmpeg` on Windows.
-    # To avoid that dependency, feed raw audio (numpy float32) directly.
     audio = audio_data.astype(np.float32, copy=False)
 
-    # Resample to 16kHz which Whisper expects.
+    # Resample to 16kHz for optimal speech recognition.
     target_sr = 16000
     if sample_rate != target_sr and audio.size:
         target_len = int(round(len(audio) * (target_sr / float(sample_rate))))
         if target_len > 0:
             audio = scipy.signal.resample(audio, target_len).astype(np.float32, copy=False)
 
-    result = model.transcribe(audio, fp16=False)
-    return (result.get("text") or "").strip()
+    wav_bytes = _float32_to_wav_bytes(audio, target_sr)
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
+                GROQ_TRANSCRIPTIONS_URL,
+                headers={"Authorization": f"Bearer {api_key}"},
+                files={"file": ("audio.wav", wav_bytes, "audio/wav")},
+                data={"model": GROQ_WHISPER_MODEL, "response_format": "json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return (data.get("text") or "").strip()
+    except (httpx.HTTPError, KeyError):
+        print(f"Error transcribing audio: {response.text}", file=__import__("sys").stderr)
 
 
 def _record_until_silence(
@@ -169,7 +190,6 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
     """
     url = (stt_url or STT_URL).rstrip("/")
     stop = stop_event or threading.Event()
-    whisper_model = _load_whisper_model()
     vad_model, get_speech_timestamps = _load_vad_model()
     if vad_model is None:
         print("Warning: silero-vad not installed; using simple energy-based VAD (less accurate)", file=__import__("sys").stderr)
@@ -180,7 +200,7 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
             if audio.size == 0:
                 continue
             print("transcribing")
-            text = _transcribe(audio, sr, model=whisper_model)
+            text = _transcribe(audio, sr)
             if not text:
                 continue
             print("posting to client", text)

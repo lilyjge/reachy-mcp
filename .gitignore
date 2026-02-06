@@ -4,3 +4,4 @@ __pycache__/
 images/
 logs/
 .env
+reachy_mini_env/
