@@ -1,1 +1,2 @@
+from .background import register_background_tools
 from .robot import register_robot_tools

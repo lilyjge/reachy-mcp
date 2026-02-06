@@ -36,6 +36,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             method (InterpolationTechnique): Interpolation method to use ("linear", "minjerk", "ease", "cartoon"). Default is "minjerk".
             body_yaw (float | None): Body yaw angle in radians. Use None to keep the current yaw.
         """
+        print("calling goto_target")
         controller.goto_target(get_mini(), head_x, head_y, head_z, head_roll, head_pitch, head_yaw, head_mm, head_degrees, body_yaw, duration, method)
         return "Done"
 
@@ -54,11 +55,12 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Returns:
             tuple[str, Image | str]: The path to the image and the image or text description of the image.
         """
+        print("calling take_picture")
         return controller.take_picture(get_mini(), for_text_only_model)
 
 
     @mcp.tool()
-    def describe_image(image: str, question: str = "What is in the image?") -> str:
+    def describe_image(image: str, question: str = "What is in the image?") -> Any:
         """Get a short text description of an image (e.g. from take_picture).
 
         Use when the model does not accept images.
@@ -70,6 +72,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Returns:
             tuple[str, str]: The path to the image and the text description of the image.
         """
+        print("calling describe_image with image: " + image + " and question: " + question)
         return controller.describe_image(image, question)
 
 
@@ -81,6 +84,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             image: Either a local filename eg returned by take_picture, absolute path, 
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
+        print("calling detect_faces with image: " + image)
         return controller.detect_faces(image)
 
     @mcp.tool()
@@ -91,6 +95,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             image: Either a local filename eg returned by take_picture, absolute path, 
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
+        print("calling analyze_face with image: " + image)
         return controller.analyze_face(image)
 
     @mcp.tool()
@@ -103,6 +108,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             person_name: The name of the person to save the image of. The image is copied
                 to `images/people/<person_name>` with a unique filename.
         """
+        print("calling save_image_person with image: " + image + " and person_name: " + person_name)
         return controller.save_image_person(image, person_name)
 
 
@@ -112,6 +118,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
 
         Runs in a background thread to avoid blocking the FastMCP event loop.
         """
+        print("calling speak with text: " + text)
         controller.speak(get_mini(), text)
         return "Done"
 
@@ -119,6 +126,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
     @mcp.tool()
     def list_emotions() -> dict[str, str]:
         """List all emotions available in the emotions library."""
+        print("calling list_emotions")
         return controller.list_emotions()
 
     @mcp.tool()
@@ -128,4 +136,5 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Runs in a background thread to avoid AsyncToSync being used
         from the same thread as the FastMCP async event loop.
         """
+        print("calling play_emotion with emotion: " + emotion)
         return controller.play_emotion(get_mini(), emotion)
