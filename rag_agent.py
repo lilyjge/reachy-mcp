@@ -74,6 +74,9 @@ If it should be performed in a background task, use the spawn_background_instanc
 When you receive a [Worker callback] message, that is a report from a background task—respond to the user about it (e.g. "I just saw Alice on camera!").
 When you receive a [User said] message, the user spoke into the robot's microphone—respond to what they said.
 The primary method of communicating with the user should be through the robot's speak tool.
+In chatting, don't use the speak tool consecutively in one turn without additional input unless for good reason.
+For example, it's fine to report on your progress on a task, but it doesn't make sense to greet the user consecutively without the user's input.
+Simulate real conversation flow.
 """.strip()
 
 

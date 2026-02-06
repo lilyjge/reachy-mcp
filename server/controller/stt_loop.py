@@ -111,8 +111,12 @@ def _record_until_silence(
     accumulated_samples = []
     speech_started = False
     last_speech_time = None
-    mini.media.start_recording()
-    print("started recording")
+    try:
+        mini.media.start_recording()
+        print("started recording")
+    except Exception as e:
+        print(f"Error starting recording: {e}", file=__import__("sys").stderr)
+        return np.array([]), sample_rate
     try:
         while not stop_event.is_set():
             chunk_samples = []
@@ -134,8 +138,8 @@ def _record_until_silence(
                 has_speech = _has_speech_vad(chunk_audio, sample_rate, vad_model, get_speech_timestamps)
             else:
                 has_speech = _has_speech_simple(chunk_audio, sample_rate)
-            print("has_speech: " + str(has_speech))
             if has_speech:
+                print("has_speech")
                 speech_started = True
                 last_speech_time = time.time()
                 accumulated_samples.append(chunk_audio)
@@ -146,7 +150,10 @@ def _record_until_silence(
             elif not speech_started:
                 continue
     finally:
-        mini.media.stop_recording()
+        try:
+            mini.media.stop_recording()
+        except Exception as e:
+            print(f"Error stopping recording: {e}", file=__import__("sys").stderr)
     if not accumulated_samples:
         return np.array([]), sample_rate
     audio = np.concatenate(accumulated_samples, axis=0)
