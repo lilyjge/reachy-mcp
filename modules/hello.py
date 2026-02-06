@@ -1,6 +1,4 @@
 from reachy_mini import ReachyMini
-
-from reachy_mini import ReachyMini
 from reachy_mini.utils import create_head_pose
 import numpy as np
 import time

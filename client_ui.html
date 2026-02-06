@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reachy Mini Chat</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 1rem auto; padding: 0 1rem; }
+    #log { border: 1px solid #ccc; border-radius: 8px; min-height: 200px; padding: 0.75rem; margin-bottom: 0.75rem; background: #fafafa; }
+    #log .user { color: #0066cc; margin: 0.25rem 0; }
+    #log .model { color: #0a0; margin: 0.25rem 0; }
+    #log .background { color: #b8860b; margin: 0.25rem 0; }
+    form { display: flex; gap: 0.5rem; }
+    input[type="text"] { flex: 1; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; }
+    button { padding: 0.5rem 1rem; background: #0066cc; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error { color: #c00; }
+  </style>
+</head>
+<body>
+  <h1>Reachy Mini Chat</h1>
+  <div id="log"></div>
+  <form id="form">
+    <input type="text" id="input" placeholder="Type a message..." autocomplete="off" />
+    <button type="submit" id="send">Send</button>
+  </form>
+  <p id="status"></p>
+  <script>
+    const BASE = window.location.origin;
+    const log = document.getElementById("log");
+    const input = document.getElementById("input");
+    const form = document.getElementById("form");
+    const sendBtn = document.getElementById("send");
+    const status = document.getElementById("status");
+
+    function append(role, text, isBackground) {
+      const div = document.createElement("div");
+      div.className = role + (isBackground ? " background" : "");
+      div.textContent = (role === "user" ? "You: " : "Robot: ") + text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function pollUpdates() {
+      try {
+        const res = await fetch(`${BASE}/updates`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const messages = data.messages || [];
+        for (const m of messages) {
+          append("model", m.content || "", !!m.worker_id);
+        }
+      } catch (_) {}
+    }
+
+    setInterval(pollUpdates, 1500);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const prompt = input.value.trim();
+      if (!prompt) return;
+      input.value = "";
+      append("user", prompt, false);
+      sendBtn.disabled = true;
+      status.textContent = "Thinking...";
+      try {
+        const res = await fetch(`${BASE}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        append("model", data.output || "", false);
+      } catch (err) {
+        append("model", "Error: " + err.message, false);
+      }
+      sendBtn.disabled = false;
+      status.textContent = "";
+    });
+  </script>
+</body>
+</html>

@@ -17,16 +17,14 @@ import soundfile as sf
 from reachy_mini import ReachyMini
 from reachy_mini.utils.constants import ASSETS_ROOT_PATH
 
-INPUT_FILE = "recorded_audio.wav"
 
-
-def play(backend: str) -> None:
+def play(path: str) -> None:
     """Play a wav file by pushing samples to the audio device."""
     # logging.basicConfig(
     #     level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s"
     # )
-    with ReachyMini(log_level="DEBUG", media_backend=backend) as mini:
-        data, samplerate_in = sf.read(INPUT_FILE, dtype="float32")
+    with ReachyMini(log_level="DEBUG") as mini:
+        data, samplerate_in = sf.read(path, dtype="float32")
         if samplerate_in != mini.media.get_output_audio_samplerate():
             data = scipy.signal.resample(
                 data,
