@@ -24,23 +24,44 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.models.groq import GroqModel
+from pydantic_ai.providers.groq import GroqProvider
+from dotenv import load_dotenv
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Model and MCP
 # ---------------------------------------------------------------------------
 
-model = OpenAIResponsesModel(
-    "openai/gpt-oss-20b",
-    provider=OpenAIProvider(
-        base_url="http://localhost:6000/v1",
-        api_key="foo",
-    ),
-)
+model = None
+try:
+    import httpx
+    _local_base_url = "https://localhost:6000/v1"
+    # Quick health check: if the local server isn't reachable, fall back to Groq.
+    # Many OpenAI-compatible servers expose GET /v1/models.
+    _models_url = _local_base_url.rstrip("/") + "/models"
+    httpx.get(_models_url, timeout=2.0, verify=False).raise_for_status()
+    model = OpenAIResponsesModel(
+        "openai/gpt-oss-20b",
+        provider=OpenAIProvider(
+            base_url=_local_base_url,
+            api_key="foo",
+        ),
+    )
+except Exception as e:
+    print("error: " + str(e))
+    model = GroqModel(
+        "openai/gpt-oss-20b",
+        provider=GroqProvider(
+            api_key=os.environ.get("GROQ_API_KEY"),
+        ),
+    )
+
 mcp_server = MCPServerStreamableHTTP("http://localhost:5000/mcp")
 
 BASE_INSTRUCTIONS = """
-You are a LLM controlling a Reachy Mini robot. You are a friendly and helpful robot.
-Use tools to physically interact with the user as a friend.
+You are a LLM controlling a Reachy Mini robot, a friendly and helpful robot.
+Use tools to physically interact with the user.
 As a LLM, you don't have image capabilities, but the robot have image tools, so work with these tools and image paths.
 You are a text only model, so remember that when you call the take picture tool.
 Use the describe_image tool to answer questions about images.
@@ -51,6 +72,8 @@ When the user asks you to perform a task, think hard about the task and the best
 Also think about whether the task should be performed in a background task or not. 
 If it should be performed in a background task, use the spawn_background_instance tool to spawn a background task.
 When you receive a [Worker callback] message, that is a report from a background task—respond to the user about it (e.g. "I just saw Alice on camera!").
+When you receive a [User said] message, the user spoke into the robot's microphone—respond to what they said.
+The primary method of communicating with the user should be through the robot's speak tool.
 """.strip()
 
 
@@ -105,6 +128,7 @@ _message_history: list = []
 
 def _push_outgoing(role: str, content: str, worker_id: str | None = None, done: bool | None = None) -> None:
     with _outgoing_lock:
+        print("pushing outgoing message: " + content)
         _outgoing_messages.append({
             "role": role,
             "content": content,
@@ -137,32 +161,45 @@ def main_app():
         while True:
             try:
                 payload = event_queue.get()
+                print("event_queue.get: " + str(payload))
                 if payload is None:
                     break
-                worker_id = payload.get("worker_id", "?")
-                message = payload.get("message", "")
-                done = payload.get("done", False)
-                worker_message = f"[Worker callback] {message} (worker_id={worker_id}, done={done}). Inform the user."
+                if payload.get("type") == "speech":
+                    worker_message = f"[User said] {payload.get('text', '')}"
+                else:
+                    worker_id = payload.get("worker_id", "?")
+                    message = payload.get("message", "")
+                    done = payload.get("done", False)
+                    worker_message = f"[Worker callback] {message} (worker_id={worker_id}, done={done}). Inform the user."
                 try:
+                    print("running agent with message: " + worker_message)
                     result = agent.run_sync(worker_message, message_history=_message_history)
                     _message_history.clear()
                     _message_history.extend(result.all_messages())
                     output = (result.output or "").strip()
-                    print("pushing outgoing message in response to callback: " + output)
-                    _push_outgoing("model", output, worker_id=worker_id, done=done)
+                    _push_outgoing("model", output, worker_id=payload.get("worker_id"), done=payload.get("done"))
                 except Exception as e:
-                    _push_outgoing("model", f"[Error processing callback] {e}", worker_id=worker_id, done=done)
-            except Exception:
-                pass
+                    _push_outgoing("model", f"[Error processing event] {e}", worker_id=payload.get("worker_id"), done=payload.get("done"))
+            except Exception as e:
+                print("error: " + str(e))
 
     _event_thread = threading.Thread(target=_event_worker, daemon=True)
     _event_thread.start()
 
     @app.post("/event")
     def post_event(payload: dict):
-        """Receive callback from background workers. Queues the event and returns immediately so the MCP server can respond to the worker; a background thread runs the agent and pushes the response to /updates."""
-        print("received callback with payload: " + str(payload))
+        """Receive callback from background workers. Queues the event and returns immediately."""
         event_queue.put_nowait(payload)
+        return {"ok": True}
+
+    @app.post("/stt")
+    def post_stt(payload: dict):
+        """Receive transcribed speech from the robot's mic (server STT loop). Queues as user speech and runs the agent; response is pushed to /updates."""
+        text = (payload.get("text") or "").strip()
+        print("received transcribed speech: " + text)
+        if not text:
+            return {"ok": False, "error": "missing or empty text"}
+        event_queue.put_nowait({"type": "speech", "text": text})
         return {"ok": True}
 
     @app.get("/updates")
