@@ -1,21 +1,16 @@
 import os
+import scipy
+import soundfile as sf
+import numpy as np
 import subprocess
 import sys
-import soundfile as sf
-import scipy.signal
-import numpy as np
 import time
 from reachy_mini import ReachyMini
-from reachy_mini.motion.recorded_move import RecordedMoves
+from threading import Thread
 
-# TTS is run in a subprocess so pyttsx3 runs on a main thread (avoids Windows deadlock in worker threads).
-_TTS_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_generate.py")
-EMOTIONS_DATASET = "pollen-robotics/reachy-mini-emotions-library"
-recorded_emotions = RecordedMoves(EMOTIONS_DATASET)
-move_names = recorded_emotions.list_moves()
-moves_and_descriptions = {name: recorded_emotions.get(name).description for name in move_names}
+_TTS_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts.py")
 
-def play(path: str, mini: ReachyMini) -> None:
+def _play(path: str, mini: ReachyMini) -> None:
     data, samplerate_in = sf.read(path, dtype="float32")
     if samplerate_in != mini.media.get_output_audio_samplerate():
         data = scipy.signal.resample(
@@ -41,11 +36,6 @@ def play(path: str, mini: ReachyMini) -> None:
     mini.media.stop_playing()
     print("Playback finished.")
 
-def _play_emotion_worker(mini: ReachyMini, emotion: str) -> None:
-    """Internal helper to play an emotion in a separate thread."""
-    move = recorded_emotions.get(emotion)
-    mini.play_move(move, initial_goto_duration=0.7)
-
 def _speak_worker(mini: ReachyMini, text: str) -> None:
     """Generate TTS and play on mini; runs in a background thread.
 
@@ -60,5 +50,12 @@ def _speak_worker(mini: ReachyMini, text: str) -> None:
         cwd=project_dir,
     )
     print("TTS done, playing...")
-    play("output.wav", mini)
-    
+    _play("server\controller\output.wav", mini)
+
+def speak(mini: ReachyMini, text: str) -> str:
+    """Speak words using text to speech with Reachy Mini's speaker.
+
+    Runs in a background thread to avoid blocking the FastMCP event loop.
+    """
+    t = Thread(target=_speak_worker, args=(mini, text))
+    t.start()
