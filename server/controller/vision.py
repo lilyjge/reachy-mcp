@@ -12,23 +12,31 @@ from urllib.parse import urlparse
 import urllib.request
 
 from dotenv import load_dotenv
-from deepface import DeepFace
 
 load_dotenv()
 from reachy_mini import ReachyMini
 from typing import Any
-import torch
-from transformers import pipeline
 from fastmcp.utilities.types import Image
 from time import sleep, monotonic
 import cv2
 import shutil
 
-pipeline = pipeline(
-    task="visual-question-answering",
-    model="Salesforce/blip-vqa-base",
-    dtype=torch.float16,
-)
+# Lazy-loaded to avoid slow server startup
+_blip_pipeline: Any = None
+
+
+def _get_blip_pipeline() -> Any:
+    """Load BLIP VQA pipeline on first use."""
+    global _blip_pipeline
+    if _blip_pipeline is None:
+        import torch
+        from transformers import pipeline as _pipeline
+        _blip_pipeline = _pipeline(
+            task="visual-question-answering",
+            model="Salesforce/blip-vqa-base",
+            dtype=torch.float16,
+        )
+    return _blip_pipeline
 
 _IMAGES_DIR = Path(__file__).resolve().parent.parent.parent / "images"
 _REACHY_DIR = _IMAGES_DIR / "reachy"
@@ -198,18 +206,22 @@ def describe_image(image_path: str | Path, question: str = "What is in the image
     groq_answer = _try_groq_describe_image(resolved, question)
     if groq_answer is not None:
         return groq_answer
-    return pipeline(question=question, image=str(resolved))
+    return _get_blip_pipeline()(question=question, image=str(resolved))
 
 
 def detect_faces(image_path: str | Path) -> Any:
     """Detect the names of the faces in the image using the DeepFace model.
     """
+    from deepface import DeepFace
     resolved = _resolve_image_path(image_path)
-    print(DeepFace.find(img_path=str(resolved), db_path="images/people/"))
-    return DeepFace.find(img_path=str(resolved), db_path="images/people/")
+    result = DeepFace.find(img_path=str(resolved), db_path="images/people/")
+    print(result)
+    return result
+
 
 def analyze_face(image_path: str | Path) -> Any:
     """Analyze the face in the image using the DeepFace model.
     """
+    from deepface import DeepFace
     resolved = _resolve_image_path(image_path)
     return DeepFace.analyze(img_path=str(resolved), actions=['age', 'gender', 'race', 'emotion'])
