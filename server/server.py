@@ -44,7 +44,7 @@ def main():
     mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
     register_robot_tools(mcp, lambda: mini)
     register_background_tools(mcp)
-    mcp.run(transport="streamable-http", port=5000)
+    mcp.run(transport="streamable-http", port=5001)
 
 
 if __name__ == "__main__":

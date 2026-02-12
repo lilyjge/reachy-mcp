@@ -57,7 +57,10 @@ except Exception as e:
         ),
     )
 
-mcp_server = MCPServerStreamableHTTP("http://localhost:5000/mcp")
+print(model)
+mcp_server = MCPServerStreamableHTTP("http://localhost:5001/mcp")
+mcp_server2 = MCPServerStreamableHTTP("http://localhost:9090/mcp")
+
 
 BASE_INSTRUCTIONS = """
 You are a LLM controlling a Reachy Mini robot, a friendly and helpful robot.
@@ -68,6 +71,14 @@ Use the describe_image tool to answer questions about images.
 Use the analyze face tool to analyze faces in images.
 If you are provided with an image with a name, save the image with the name.
 If you take a picture and the image matches a named person, save the image with the name too.
+
+You also have access to a TurtleBot4 robot with the following capabilities:
+- Navigation: drive forward/backward, rotate, navigate to positions
+- Docking: dock to charging station (dock action) and undock from charging station (undock action)
+- Sensors: camera feed, LIDAR scans for obstacle detection
+- Actions: wall_follow, drive_distance, rotate_angle, drive_arc, and more
+You can coordinate actions between the Reachy Mini and TurtleBot to accomplish complex tasks.
+
 When the user asks you to perform a task, think hard about the task and the best way to perform it.
 Also think about whether the task should be performed in a background task or not. 
 If it should be performed in a background task, use the spawn_background_instance tool to spawn a background task.
@@ -84,7 +95,7 @@ def _make_agent(extra_instructions: str = "") -> Agent:
         instructions = f"{instructions}\n\n{extra_instructions}"
     return Agent(
         model,
-        toolsets=[mcp_server],
+        toolsets=[mcp_server, mcp_server2],
         instructions=instructions,
     )
 
@@ -110,9 +121,43 @@ def _run_worker(worker_id: str, system_prompt: str) -> None:
         log("calling agent.run_sync ...")
         result = agent.run_sync(first_message)
         log(f"result: {result.output or '(no output)'}")
+    except TimeoutError as e:
+        import traceback
+        log(f"timeout error during MCP initialization or task execution: {e}")
+        log("attempting to send callback about timeout...")
+        # Try to notify about the timeout via callback if possible
+        try:
+            import httpx
+            httpx.post(
+                "http://localhost:8765/event",
+                json={
+                    "worker_id": worker_id,
+                    "message": f"Worker timed out during initialization or execution. This may indicate MCP servers are slow/unavailable or the task took too long.",
+                    "done": True,
+                },
+                timeout=5.0,
+            )
+        except Exception:
+            pass
+        traceback.print_exc()
+        sys.exit(1)
     except Exception as e:
         import traceback
         log(f"error: {e}")
+        # Try to send error callback
+        try:
+            import httpx
+            httpx.post(
+                "http://localhost:8765/event",
+                json={
+                    "worker_id": worker_id,
+                    "message": f"Worker encountered error: {type(e).__name__}: {e}",
+                    "done": True,
+                },
+                timeout=5.0,
+            )
+        except Exception:
+            pass
         traceback.print_exc()
         sys.exit(1)
     sys.exit(0)
@@ -180,9 +225,15 @@ def main_app():
                     output = (result.output or "").strip()
                     _push_outgoing("model", output, worker_id=payload.get("worker_id"), done=payload.get("done"))
                 except Exception as e:
-                    _push_outgoing("model", f"[Error processing event] {e}", worker_id=payload.get("worker_id"), done=payload.get("done"))
+                    import traceback
+                    error_msg = f"[Error processing event] {type(e).__name__}: {e}"
+                    print(f"Agent error: {error_msg}")
+                    traceback.print_exc()
+                    _push_outgoing("model", error_msg, worker_id=payload.get("worker_id"), done=payload.get("done"))
             except Exception as e:
-                print("error: " + str(e))
+                import traceback
+                print(f"Event worker error: {type(e).__name__}: {e}")
+                traceback.print_exc()
 
     _event_thread = threading.Thread(target=_event_worker, daemon=True)
     _event_thread.start()
