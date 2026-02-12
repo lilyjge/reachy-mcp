@@ -41,7 +41,7 @@ pip install -r requirements.txt
 ## Usage
 Start Reachy Mini's server on the default port 8000:
 
-`uv run reachy-mini-daemon `
+`uv run reachy-mini-daemon`
 
 Start the MCP server on port 5000:
 

@@ -113,13 +113,20 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
 
 
     @mcp.tool()
-    def speak(text: str) -> str:
+    def speak(text: str, forcefully_interrupt: bool = False) -> str:
         """Speak words using text to speech with Reachy Mini's speaker.
+
+        Args:
+            text: The text to speak.
+            forcefully_interrupt: If True and the robot is currently speaking, stop
+                the current speech, clear any queued speech, and speak immediately.
+                If False (default) and the robot is speaking, queue this request to
+                execute after the current speech finishes.
 
         Runs in a background thread to avoid blocking the FastMCP event loop.
         """
-        print("calling speak with text: " + text)
-        controller.speak(get_mini(), text)
+        print(f"calling speak with text: {text}, forcefully_interrupt: {forcefully_interrupt}")
+        controller.speak(get_mini(), text, forcefully_interrupt)
         return "Done"
 
 
