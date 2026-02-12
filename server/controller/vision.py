@@ -13,17 +13,27 @@ from deepface import DeepFace
 from reachy_mini import ReachyMini
 from typing import Any
 import torch
-from transformers import pipeline
+from transformers import pipeline as create_pipeline
 from fastmcp.utilities.types import Image
 from time import sleep, monotonic
 import cv2
 import shutil
 
-pipeline = pipeline(
-    task="visual-question-answering",
-    model="Salesforce/blip-vqa-base",
-    dtype=torch.float16,
-)
+# Lazy-load the VQA pipeline to avoid blocking server startup
+_vqa_pipeline = None
+
+def _get_vqa_pipeline():
+    """Lazy-load the VQA pipeline only when needed."""
+    global _vqa_pipeline
+    if _vqa_pipeline is None:
+        print("Loading VQA model (Salesforce/blip-vqa-base)... This may take a few minutes on first run.")
+        _vqa_pipeline = create_pipeline(
+            task="visual-question-answering",
+            model="Salesforce/blip-vqa-base",
+            dtype=torch.float16,
+        )
+        print("VQA model loaded successfully!")
+    return _vqa_pipeline
 
 _IMAGES_DIR = Path(__file__).resolve().parent.parent.parent / "images"
 _REACHY_DIR = _IMAGES_DIR / "reachy"
@@ -136,7 +146,8 @@ def describe_image(image_path: str | Path, question: str = "What is in the image
         question: The question to ask the model. Defaults to "What is in the image?"
     """
     resolved = _resolve_image_path(image_path)
-    return pipeline(question=question, image=str(resolved))
+    vqa = _get_vqa_pipeline()
+    return vqa(question=question, image=str(resolved))
 
 
 def detect_faces(image_path: str | Path) -> Any:
