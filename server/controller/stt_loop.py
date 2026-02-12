@@ -83,7 +83,7 @@ def _has_speech_simple(audio_chunk: np.ndarray, sample_rate: int) -> bool:
     if audio_chunk.size == 0:
         return False
     rms = np.sqrt(np.mean(audio_chunk**2))
-    threshold = 0.01
+    threshold = 0.04
     return rms > threshold
 
 
