@@ -5,41 +5,49 @@ Used when the client model is text-only so image content is converted to text.
 
 from __future__ import annotations
 
+import base64
+import os
 from pathlib import Path
 from urllib.parse import urlparse
 import urllib.request
 
-from deepface import DeepFace
+from dotenv import load_dotenv
+
+load_dotenv()
 from reachy_mini import ReachyMini
 from typing import Any
-import torch
-from transformers import pipeline as create_pipeline
 from fastmcp.utilities.types import Image
 from time import sleep, monotonic
 import cv2
 import shutil
 
-# Lazy-load the VQA pipeline to avoid blocking server startup
-_vqa_pipeline = None
+# Lazy-loaded to avoid slow server startup
+_blip_pipeline: Any = None
 
-def _get_vqa_pipeline():
-    """Lazy-load the VQA pipeline only when needed."""
-    global _vqa_pipeline
-    if _vqa_pipeline is None:
-        print("Loading VQA model (Salesforce/blip-vqa-base)... This may take a few minutes on first run.")
-        _vqa_pipeline = create_pipeline(
+
+def _get_blip_pipeline() -> Any:
+    """Load BLIP VQA pipeline on first use."""
+    global _blip_pipeline
+    if _blip_pipeline is None:
+        import torch
+        from transformers import pipeline as _pipeline
+        _blip_pipeline = _pipeline(
             task="visual-question-answering",
             model="Salesforce/blip-vqa-base",
             dtype=torch.float16,
         )
-        print("VQA model loaded successfully!")
-    return _vqa_pipeline
+    return _blip_pipeline
 
 _IMAGES_DIR = Path(__file__).resolve().parent.parent.parent / "images"
 _REACHY_DIR = _IMAGES_DIR / "reachy"
 _UPLOAD_DIR = _IMAGES_DIR / "upload"
 # Cache mapping URLs to their downloaded local paths to avoid re-downloading
 _url_cache: dict[str, Path] = {}
+
+# Groq vision: Scout is faster and cheaper than Maverick; sufficient for image description
+_GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+_GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+_MAX_BASE64_MB = 4  # Groq limit for base64 image in request
 
 
 def _next_image_path() -> Path:
@@ -138,27 +146,82 @@ def save_image_person(image_path: str, person_name: str) -> str:
         return f"Error copying image: {e}"
 
 
-def describe_image(image_path: str | Path, question: str = "What is in the image?") -> Any:
-    """Describe the image using the BLIP model.
+def _try_groq_describe_image(resolved: Path, question: str) -> str | None:
+    """Use Groq Llama 4 Scout for vision. Return answer string or None to fall back to BLIP."""
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return None
+    try:
+        import httpx
+        raw = resolved.read_bytes()
+        if len(raw) > _MAX_BASE64_MB * 1024 * 1024:
+            return None
+        b64 = base64.b64encode(raw).decode("utf-8")
+        # Use jpeg for photos; png for screenshots. Groq accepts both.
+        suffix = resolved.suffix.lower()
+        mime = "image/png" if suffix == ".png" else "image/jpeg"
+        data_uri = f"data:{mime};base64,{b64}"
+        payload = {
+            "model": _GROQ_VISION_MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {"type": "image_url", "image_url": {"url": data_uri}},
+                    ],
+                }
+            ],
+            "max_tokens": 1024,
+            "temperature": 0.2,
+        }
+        r = httpx.post(
+            _GROQ_CHAT_URL,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=30.0,
+        )
+        if not r.is_success:
+            return None
+        data = r.json()
+        content = (data.get("choices") or [{}])[0].get("message", {}).get("content")
+        if content and isinstance(content, str):
+            return content.strip()
+    except Exception:
+        pass
+    return None
 
-    Args:
-        image_path: The path to the image to describe.
-        question: The question to ask the model. Defaults to "What is in the image?"
+
+def describe_image(image_path: str | Path, question: str = "What is in the image?") -> Any:
+    """Describe the image: try Groq Llama 4 Scout first, fall back to local BLIP.
+
+    Returns a string (the answer). Uses GROQ_API_KEY when set.
     """
     resolved = _resolve_image_path(image_path)
-    vqa = _get_vqa_pipeline()
-    return vqa(question=question, image=str(resolved))
+    if not resolved.is_file():
+        return "Error: image file not found."
+    groq_answer = _try_groq_describe_image(resolved, question)
+    if groq_answer is not None:
+        return groq_answer
+    return _get_blip_pipeline()(question=question, image=str(resolved))
 
 
 def detect_faces(image_path: str | Path) -> Any:
     """Detect the names of the faces in the image using the DeepFace model.
     """
+    from deepface import DeepFace
     resolved = _resolve_image_path(image_path)
-    print(DeepFace.find(img_path=str(resolved), db_path="images/people/"))
-    return DeepFace.find(img_path=str(resolved), db_path="images/people/")
+    result = DeepFace.find(img_path=str(resolved), db_path="images/people/")
+    print(result)
+    return result
+
 
 def analyze_face(image_path: str | Path) -> Any:
     """Analyze the face in the image using the DeepFace model.
     """
+    from deepface import DeepFace
     resolved = _resolve_image_path(image_path)
     return DeepFace.analyze(img_path=str(resolved), actions=['age', 'gender', 'race', 'emotion'])
