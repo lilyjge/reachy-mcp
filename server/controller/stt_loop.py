@@ -15,6 +15,7 @@ import scipy.signal
 import dotenv
 import httpx
 from reachy_mini import ReachyMini
+from .vision import wait_for_eye_contact
 dotenv.load_dotenv()
 
 # Groq speech-to-text (OpenAI-compatible)
@@ -195,7 +196,10 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
         print("Warning: silero-vad not installed; using simple energy-based VAD (less accurate)", file=__import__("sys").stderr)
     while not stop.is_set():
         try:
-            print("recording until silence")
+            print("waiting for eye contact...")
+            if not wait_for_eye_contact(mini, stop, poll_interval=0.08):
+                continue
+            print("eye contact detected, recording until silence")
             audio, sr = _record_until_silence(mini, vad_model, get_speech_timestamps, stop)
             if audio.size == 0:
                 continue
@@ -206,8 +210,9 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
             print("posting to client", text)
             try:
                 httpx.post(url, json={"text": text}, timeout=5.0)
-            except httpx.HTTPError:
-                pass
+            except httpx.HTTPError as e:
+                print(f"Error posting to client in stt loop: {e}")
+                continue
         except Exception:
             if stop.is_set():
                 break

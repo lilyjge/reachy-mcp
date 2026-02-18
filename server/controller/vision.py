@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
+import threading
 from urllib.parse import urlparse
 import urllib.request
 
@@ -19,6 +20,7 @@ from typing import Any
 from fastmcp.utilities.types import Image
 from time import sleep, monotonic
 import cv2
+import numpy as np
 import shutil
 
 # Lazy-loaded to avoid slow server startup
@@ -225,3 +227,129 @@ def analyze_face(image_path: str | Path) -> Any:
     from deepface import DeepFace
     resolved = _resolve_image_path(image_path)
     return DeepFace.analyze(img_path=str(resolved), actions=['age', 'gender', 'race', 'emotion'])
+
+_FACE_CENTER_MARGIN = 0.67   # face center within ±67% of image center (tighter)
+_MIN_FACE_SIZE = 80          # ignore small/distant faces (noisy)
+_EYE_CONFIRM_CONSECUTIVE = 4  # require this many consecutive positive frames
+
+_frontal_face_cascade = None
+_eye_cascade = None
+
+def _get_frontal_face_cascade():
+    """Lazy-load OpenCV Haar cascade for frontal face detection."""
+    global _frontal_face_cascade
+    if _frontal_face_cascade is None:
+        _frontal_face_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
+    return _frontal_face_cascade
+
+
+def _get_eye_cascade():
+    """Lazy-load OpenCV Haar cascade for eyes (used inside face ROI)."""
+    global _eye_cascade
+    if _eye_cascade is None:
+        _eye_cascade = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_eye.xml"
+        )
+    return _eye_cascade
+
+
+def _face_has_two_eyes(gray: np.ndarray, x: int, y: int, fw: int, fh: int) -> bool:
+    """Return True if we detect two distinct eyes in the upper part of the face ROI."""
+    # Eyes are in the upper ~60% of the face
+    roi_y = max(0, int(fh * 0.15))
+    roi_h = int(fh * 0.55)
+    if roi_h < 20:
+        return False
+    roi = gray[y + roi_y : y + roi_y + roi_h, x : x + fw]
+    if roi.size == 0:
+        return False
+    eye_cascade = _get_eye_cascade()
+    eyes = eye_cascade.detectMultiScale(
+        roi,
+        scaleFactor=1.1,
+        minNeighbors=8,
+        minSize=(12, 12),
+    )
+    # We need at least 2 eye-like regions (left and right); allow 2–4 (can get duplicates)
+    if len(eyes) < 2:
+        return False
+    # Sanity: two eyes should be separated horizontally (one left, one right)
+    ex_centers = [ex + ew / 2 for (ex, _, ew, _) in eyes]
+    ex_centers.sort()
+    span = ex_centers[-1] - ex_centers[0] if ex_centers else 0
+    if span < fw * 0.2:  # too close together, likely same eye or noise
+        return False
+    return True
+
+
+def check_making_eye_contact(image_path: str | Path | np.ndarray) -> bool:
+    """Check if a face in the image is making eye contact (looking straight at the camera).
+
+    Uses: one frontal face, tightly centered, of sufficient size, with both eyes
+    detected in the face ROI to reduce false positives (face turned but eyes not at camera).
+    """
+    if isinstance(image_path, np.ndarray):
+        frame = image_path
+        if frame.ndim != 3:
+            return False
+    else:
+        resolved = _resolve_image_path(image_path)
+        if not resolved.is_file():
+            return False
+        frame = cv2.imread(str(resolved))
+        if frame is None:
+            return False
+
+    h, w = frame.shape[:2]
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    cascade = _get_frontal_face_cascade()
+    faces = cascade.detectMultiScale(
+        gray,
+        scaleFactor=1.1,
+        minNeighbors=9,
+        minSize=(_MIN_FACE_SIZE, _MIN_FACE_SIZE),
+        flags=cv2.CASCADE_SCALE_IMAGE,
+    )
+    if len(faces) != 1:
+        return False
+
+    for face in faces:
+        x, y, fw, fh = face
+        face_center_x = x + fw / 2
+        face_center_y = y + fh / 2
+        img_center_x = w / 2
+        img_center_y = h / 2
+        margin_x = _FACE_CENTER_MARGIN * w
+        margin_y = _FACE_CENTER_MARGIN * h
+        if abs(face_center_x - img_center_x) > margin_x or abs(face_center_y - img_center_y) > margin_y:
+            continue
+        if not _face_has_two_eyes(gray, x, y, fw, fh):
+            continue
+        return True
+    return False
+
+
+def wait_for_eye_contact(
+    mini: ReachyMini,
+    stop_event: threading.Event,
+    poll_interval: float = 0.08,
+) -> bool:
+    """Continuously capture frames and check for eye contact until seen or stop is set.
+
+    Requires several consecutive positive frames to avoid false positives.
+    Returns True if eye contact was detected, False if stop_event was set first.
+    """
+    _ = mini.media.get_frame()
+    consecutive = 0
+    while not stop_event.is_set():
+        frame = mini.media.get_frame()
+        if frame is not None and check_making_eye_contact(frame):
+            consecutive += 1
+            if consecutive >= _EYE_CONFIRM_CONSECUTIVE:
+                return True
+        else:
+            consecutive = 0
+        stop_event.wait(timeout=poll_interval)
+    return False
