@@ -2,11 +2,17 @@ from collections.abc import Callable
 
 import controller
 from reachy_mini import ReachyMini
+from resource_manager import ResourceManager, HEAD_MOTOR, CAMERA
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from typing import Any
 
-def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
+
+def register_robot_tools(
+    mcp: FastMCP,
+    get_mini: Callable[[], ReachyMini],
+    get_rm: Callable[[], ResourceManager],
+):
     @mcp.tool()
     def goto_target(
         head_x: float = 0,
@@ -37,7 +43,13 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             body_yaw (float | None): Body yaw angle in radians. Use None to keep the current yaw.
         """
         print("calling goto_target")
-        controller.goto_target(get_mini(), head_x, head_y, head_z, head_roll, head_pitch, head_yaw, head_mm, head_degrees, body_yaw, duration, method)
+        get_rm().run(
+            HEAD_MOTOR,
+            controller.goto_target,
+            get_mini(), head_x, head_y, head_z,
+            head_roll, head_pitch, head_yaw,
+            head_mm, head_degrees, body_yaw, duration, method,
+        )
         return "Done"
 
 
@@ -56,7 +68,10 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             tuple[str, Image | str]: The path to the image and the image or text description of the image.
         """
         print("calling take_picture")
-        return controller.take_picture(get_mini(), for_text_only_model)
+        return get_rm().run(
+            CAMERA,
+            controller.take_picture, get_mini(), for_text_only_model,
+        )
 
 
     @mcp.tool()
@@ -73,6 +88,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             tuple[str, str]: The path to the image and the text description of the image.
         """
         print("calling describe_image with image: " + image + " and question: " + question)
+        # Pure compute — no hardware lock needed
         return controller.describe_image(image, question)
 
 
@@ -85,7 +101,9 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
         print("calling detect_faces with image: " + image)
+        # Pure compute — no hardware lock needed
         return controller.detect_faces(image)
+
 
     @mcp.tool()
     def analyze_face(image: str) -> Any:
@@ -96,7 +114,9 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
         print("calling analyze_face with image: " + image)
+        # Pure compute — no hardware lock needed
         return controller.analyze_face(image)
+
 
     @mcp.tool()
     def save_image_person(image: str, person_name: str) -> str:
@@ -109,6 +129,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
                 to `images/people/<person_name>` with a unique filename.
         """
         print("calling save_image_person with image: " + image + " and person_name: " + person_name)
+        # File I/O only — no hardware lock needed
         return controller.save_image_person(image, person_name)
 
 
@@ -126,6 +147,9 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Runs in a background thread to avoid blocking the FastMCP event loop.
         """
         print(f"calling speak with text: {text}, forcefully_interrupt: {forcefully_interrupt}")
+        # Speaker already has its own internal queue in the controller,
+        # so no resource lock needed here. If you want to protect it:
+        # get_rm().run(SPEAKER, controller.speak, get_mini(), text, forcefully_interrupt)
         controller.speak(get_mini(), text, forcefully_interrupt)
         return "Done"
 
@@ -134,7 +158,9 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
     def list_emotions() -> dict[str, str]:
         """List all emotions available in the emotions library."""
         print("calling list_emotions")
+        # Pure data lookup — no lock needed
         return controller.list_emotions()
+
 
     @mcp.tool()
     def play_emotion(emotion: str) -> str:
@@ -144,4 +170,9 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         from the same thread as the FastMCP async event loop.
         """
         print("calling play_emotion with emotion: " + emotion)
-        return controller.play_emotion(get_mini(), emotion)
+        # Emotions move the head motors
+        get_rm().run(
+            HEAD_MOTOR,
+            controller.play_emotion, get_mini(), emotion,
+        )
+        return "Done"
