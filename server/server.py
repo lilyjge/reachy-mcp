@@ -10,12 +10,10 @@ from controller.stt_loop import start_stt_loop
 from reachy_mini import ReachyMini
 import shutil
 from fastmcp import FastMCP
-from resource_manager import ResourceManager
 from tools import register_background_tools, register_robot_tools
 
 # Set by lifespan when the server starts; tools resolve it via getter so registration can happen before run().
 mini = None
-resource_mgr = ResourceManager()
 _stt_stop = None
 _stt_thread = None
 
@@ -44,7 +42,7 @@ async def lifespan(server):
 
 def main():
     mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
-    register_robot_tools(mcp, lambda: mini, lambda: resource_mgr)
+    register_robot_tools(mcp, lambda: mini)
     register_background_tools(mcp)
     mcp.run(transport="streamable-http", port=5001)
 
