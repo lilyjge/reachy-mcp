@@ -18,13 +18,16 @@ def play_emotion(mini: ReachyMini, emotion: str):
 
     Runs in a background thread to avoid AsyncToSync being used
     from the same thread as the FastMCP async event loop.
+    Blocks until the emotion finishes so callers holding a resource
+    lock keep it for the full duration of motor movement.
     """
     if emotion not in moves_and_descriptions:
         return "Emotion not found! Use list_emotions to get the list of available emotions."
     else:
         t = Thread(target=_play_emotion_worker, args=(mini, emotion))
         t.start()
-        return "Playing emotion..."
+        t.join()  # wait for the emotion to finish before releasing
+        return "Done playing emotion."
 
 def list_emotions() -> dict[str, str]:
     """List all emotions available in the emotions library."""
