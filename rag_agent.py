@@ -59,7 +59,21 @@ except Exception as e:
 
 print(model)
 mcp_server = MCPServerStreamableHTTP("http://localhost:5001/mcp")
-mcp_server2 = MCPServerStreamableHTTP("http://localhost:9090/mcp")
+
+# Try to connect to ROS MCP server, but make it optional
+mcp_server2 = None
+ros_mcp_available = False
+try:
+    import httpx
+    _ros_mcp_url = "http://localhost:9090/mcp"
+    # Quick check to see if the ROS MCP server is accessible
+    httpx.get(_ros_mcp_url, timeout=2.0, headers={"Accept": "text/event-stream"})
+    mcp_server2 = MCPServerStreamableHTTP(_ros_mcp_url)
+    ros_mcp_available = True
+    print("✓ ROS MCP server (TurtleBot) available on port 9090")
+except Exception as e:
+    print(f"⚠ ROS MCP server not available on port 9090 - TurtleBot features disabled")
+    print(f"  (This is OK if you're not using TurtleBot: {e})")
 
 
 BASE_INSTRUCTIONS = """
@@ -72,13 +86,6 @@ Use the analyze face tool to analyze faces in images.
 If you are provided with an image with a name, save the image with the name.
 If you take a picture and the image matches a named person, save the image with the name too.
 
-You also have access to a TurtleBot4 robot with the following capabilities:
-- Navigation: drive forward/backward, rotate, navigate to positions
-- Docking: dock to charging station (dock action) and undock from charging station (undock action)
-- Sensors: camera feed, LIDAR scans for obstacle detection
-- Actions: wall_follow, drive_distance, rotate_angle, drive_arc, and more
-You can coordinate actions between the Reachy Mini and TurtleBot to accomplish complex tasks.
-
 When the user asks you to perform a task, think hard about the task and the best way to perform it.
 Also think about whether the task should be performed in a background task or not. 
 If it should be performed in a background task, use the spawn_background_instance tool to spawn a background task.
@@ -88,14 +95,31 @@ If you want to send a message to the user, always use the speak tool instead of 
 Simulate real conversation flow.
 """.strip()
 
+TURTLEBOT_INSTRUCTIONS = """
+You also have access to a TurtleBot4 robot with the following capabilities:
+- Navigation: drive forward/backward, rotate, navigate to positions
+- Docking: dock to charging station (dock action) and undock from charging station (undock action)
+- Sensors: camera feed, LIDAR scans for obstacle detection
+- Actions: wall_follow, drive_distance, rotate_angle, drive_arc, and more
+You can coordinate actions between the Reachy Mini and TurtleBot to accomplish complex tasks.
+""".strip()
+
 
 def _make_agent(extra_instructions: str = "") -> Agent:
     instructions = BASE_INSTRUCTIONS
+    if ros_mcp_available:
+        instructions = f"{instructions}\n\n{TURTLEBOT_INSTRUCTIONS}"
     if extra_instructions:
         instructions = f"{instructions}\n\n{extra_instructions}"
+    
+    # Build toolsets list based on what's available
+    toolsets = [mcp_server]
+    if mcp_server2 is not None:
+        toolsets.append(mcp_server2)
+    
     return Agent(
         model,
-        toolsets=[mcp_server, mcp_server2],
+        toolsets=toolsets,
         instructions=instructions,
     )
 
