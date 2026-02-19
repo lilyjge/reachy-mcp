@@ -39,25 +39,60 @@ pip install -r requirements.txt
 
 
 ## Usage
-Start Reachy Mini's server on the default port 8000:
 
-`uv run reachy-mini-daemon`
+### Quick Start (All Services)
+Start all services at once:
 
-Start the MCP server on port 5000:
+```bash
+./start_all.sh
+```
 
-`python .\server\server.py`
+This will start:
+- Reachy Mini daemon (port 8000)
+- MCP server (port 5001)
+- RAG agent (port 8765)
 
-Start the agent's client server on port 8765:
+Logs are saved to `logs/` directory. To stop all services:
 
-`python rag_agent.py`
+```bash
+./stop_all.sh
+```
+
+### Manual Start (Individual Services)
+Alternatively, start each service manually:
+
+1. Start Reachy Mini's daemon on port 8000:
+   ```bash
+   uv run reachy-mini-daemon
+   ```
+
+2. Start the MCP server on port 5001:
+   ```bash
+   python server/server.py
+   ```
+
+3. Start the agent's client server on port 8765:
+   ```bash
+   python rag_agent.py
+   ```
 
 Now you can talk to the Reachy Mini directly.
 
-If you want to directly chat with LLM without going through Reachy, you can launch a CLI chat:
+### Interaction Options
 
-`python client_cli.py`
+**Web UI**: Visit `http://localhost:8765/` in your browser for a chat interface.
 
-Or, when the agent is running, visit `http://localhost:8765/` in your browser.
+**CLI**: For direct LLM chat without going through Reachy:
+```bash
+python client_cli.py
+```
+
+**Logs**: Monitor service logs in real-time:
+```bash
+tail -f logs/reachy_daemon.log
+tail -f logs/mcp_server.log
+tail -f logs/rag_agent.log
+```
 
 ## Technical Details
 
