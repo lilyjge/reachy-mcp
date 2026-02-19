@@ -2,11 +2,23 @@ from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
 from threading import Thread
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .movement_manager import MovementManager
 
 EMOTIONS_DATASET = "pollen-robotics/reachy-mini-emotions-library"
 recorded_emotions = RecordedMoves(EMOTIONS_DATASET)
 move_names = recorded_emotions.list_moves()
 moves_and_descriptions = {name: recorded_emotions.get(name).description for name in move_names}
+
+# Global reference to movement manager (set by server.py)
+_movement_manager: "MovementManager | None" = None
+
+def set_movement_manager(manager: "MovementManager") -> None:
+    """Set the global movement manager reference."""
+    global _movement_manager
+    _movement_manager = manager
 
 def _play_emotion_worker(mini: ReachyMini, emotion: str) -> None:
     """Internal helper to play an emotion in a separate thread."""
@@ -19,6 +31,9 @@ def play_emotion(mini: ReachyMini, emotion: str):
     Runs in a background thread to avoid AsyncToSync being used
     from the same thread as the FastMCP async event loop.
     """
+    if _movement_manager:
+        _movement_manager.mark_activity()
+    
     if emotion not in moves_and_descriptions:
         return "Emotion not found! Use list_emotions to get the list of available emotions."
     else:
@@ -59,6 +74,9 @@ def goto_target(
         method (InterpolationTechnique): Interpolation method to use ("linear", "minjerk", "ease", "cartoon"). Default is "minjerk".
         body_yaw (float | None): Body yaw angle in radians. Use None to keep the current yaw.
     """
+    if _movement_manager:
+        _movement_manager.mark_activity()
+    
     mini.goto_target(
         head=create_head_pose(
             x=head_x,
