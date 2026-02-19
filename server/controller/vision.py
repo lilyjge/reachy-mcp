@@ -16,15 +16,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from reachy_mini import ReachyMini
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from fastmcp.utilities.types import Image
 from time import sleep, monotonic
 import cv2
 import numpy as np
 import shutil
 
+if TYPE_CHECKING:
+    from .movement_manager import MovementManager
+
 # Lazy-loaded to avoid slow server startup
 _blip_pipeline: Any = None
+
+# Global reference to movement manager (set by server.py)
+_movement_manager: "MovementManager | None" = None
+
+def set_movement_manager(manager: "MovementManager") -> None:
+    """Set the global movement manager reference."""
+    global _movement_manager
+    _movement_manager = manager
 
 
 def _get_blip_pipeline() -> Any:
@@ -114,6 +125,9 @@ def take_picture(mini: ReachyMini, for_text_only_model: bool = True) -> tuple[st
             not accept images (e.g. text-only LLM). If False, return the image
             for multimodal models.
     """
+    if _movement_manager:
+        _movement_manager.mark_activity()
+    
     sleep(1)
     # Flush one frame to avoid occasionally getting an outdated buffer frame,
     # then grab the next one as the actual snapshot.
