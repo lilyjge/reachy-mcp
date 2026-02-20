@@ -25,7 +25,8 @@ def play_emotion(mini: ReachyMini, emotion: str):
     else:
         t = Thread(target=_play_emotion_worker, args=(mini, emotion))
         t.start()
-        return "Playing emotion..."
+        t.join()
+        return "Done playing emotion."
 
 def list_emotions() -> dict[str, str]:
     """List all emotions available in the emotions library."""
