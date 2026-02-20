@@ -42,8 +42,29 @@ python -m venv reachy_mini_env
 # Install dependencies
 pip install -r requirements.txt
 ```
-
 ## Usage
+
+### Quick Start (All Services)
+Start all services at once:
+
+```bash
+./start_all.sh
+```
+
+This will start:
+- Reachy Mini daemon (port 8000)
+- MCP server (port 5001)
+- RAG agent (port 8765)
+
+Logs are saved to `logs/` directory. To stop all services:
+
+```bash
+./stop_all.sh
+```
+
+### Manual Start (Individual Services)
+Alternatively, start each service manually:
+
 Start Reachy Mini's robot daemon server on the default port 8000:
 
 `uv run reachy-mini-daemon`
