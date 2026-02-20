@@ -9,27 +9,28 @@ flowchart TB
         Chat["Browser UI or CLI"]
     end
 
-    subgraph Client["Client — Kernel + Process manager"]
+    subgraph Client["Client: Kernel, Process manager"]
         direction TB
-        API["HTTP API\n/event, /stt, /chat, /updates"]
+        API["HTTP API /event, /stt"]
         Queue["Event queue"]
-        Kernel["Kernel agent\n(single event_worker thread)"]
-        ProcMCP["MCP server that acts as process manager"]
+        Kernel["Kernel agent (single event_worker thread)"]
+        ProcMCP["Process manager (MCP server)"]
         
         API --> Queue
         Queue --> Kernel
         Kernel -->|"calls tools"| ProcMCP
-        ProcMCP -->|"Launch processes"| Worker
     end
 
     subgraph Workers["Processes (agent workers)"]
-        Worker["Worker agent\n(robot tools via Reachy MCP)"]
+        direction TB
+        W1["Worker agent 1"]
+        W2["Worker agent 2"]
     end
 
-    subgraph Device["Device drivers — Reachy MCP"]
-        MCP["Reachy's MCP server\n(goto_target, take_picture,\nspeak, …)"]
-        STT["STT loop\n(mic → VAD → transcribe)"]
-        Mini["ReachyMini SDK\n(lifespan)"]
+    subgraph Device["Device drivers: Reachy MCP"]
+        MCP["Reachy's MCP server (goto_target, take_picture, speak, …)"]
+        STT["STT loop (mic → VAD → transcribe)"]
+        Mini["ReachyMini SDK (lifespan)"]
         MCP --> Mini
         STT --> Mini
     end
@@ -40,11 +41,18 @@ flowchart TB
         Daemon --> Robot
     end
 
+    ProcMCP -->|"launch_process" tool | W1
+    ProcMCP -->|"launch_process" tool | W2
+
+    W1 -->|"tool calls"| MCP
+    W2 -->|"tool calls"| MCP
+
+    W1 -->|"POST /event (callback)"| API
+    W2 -->|"POST /event (callback)"| API
+
     Chat --> API
     Reachy --> API
     STT -->|"POST /stt"| API
-    Worker -->|"POST /event\n(callback)"| API
-    Worker -->|"tool calls"| MCP
     Mini --> Daemon
 ```
 
