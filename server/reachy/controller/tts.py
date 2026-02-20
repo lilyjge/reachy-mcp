@@ -6,7 +6,8 @@ falls back to pyttsx3 if Groq is unavailable or text exceeds 200 characters.
 import os
 import sys
 import pyttsx3
-
+import dotenv
+dotenv.load_dotenv()
 GROQ_SPEECH_URL = "https://api.groq.com/openai/v1/audio/speech"
 GROQ_MODEL = "canopylabs/orpheus-v1-english"
 GROQ_VOICE = "autumn"
@@ -38,8 +39,8 @@ def _try_groq_tts(text: str, path: str) -> bool:
             with open(path, "wb") as f:
                 f.write(r.content)
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Groq TTS failed: {e}")
     return False
 
 
@@ -50,7 +51,7 @@ def main() -> None:
     path = sys.argv[2] if len(sys.argv) > 2 else "output.wav"
 
     if not _try_groq_tts(text, path):
-        print("Groq TTS failed, falling back to pyttsx3")
+        print("groq tts failed")
         engine = pyttsx3.init()
         engine.save_to_file(text, path)
         engine.runAndWait()
