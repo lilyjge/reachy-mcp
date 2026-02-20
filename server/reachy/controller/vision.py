@@ -114,7 +114,10 @@ def take_picture(mini: ReachyMini, for_text_only_model: bool = True) -> tuple[st
             not accept images (e.g. text-only LLM). If False, return the image
             for multimodal models.
     """
-    sleep(1)
+    # Brief delay to avoid stale buffer; reduce for lower latency (env TAKE_PICTURE_DELAY_SEC overrides)
+    delay = float(os.environ.get("TAKE_PICTURE_DELAY_SEC", "0.35"))
+    if delay > 0:
+        sleep(delay)
     # Flush one frame to avoid occasionally getting an outdated buffer frame,
     # then grab the next one as the actual snapshot.
     _ = mini.media.get_frame()

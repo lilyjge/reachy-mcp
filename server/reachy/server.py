@@ -5,13 +5,12 @@ Run from the repository root:
 """
 
 from contextlib import asynccontextmanager
-import controller
-from controller.stt_loop import start_stt_loop
+from . import controller
+from .controller.stt_loop import start_stt_loop
 from reachy_mini import ReachyMini
 import shutil
 from fastmcp import FastMCP
-from tools import register_background_tools, register_robot_tools
-
+from .robot import register_robot_tools
 # Set by lifespan when the server starts; tools resolve it via getter so registration can happen before run().
 mini = None
 _stt_stop = None
@@ -43,8 +42,11 @@ async def lifespan(server):
 def main():
     mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
     register_robot_tools(mcp, lambda: mini)
-    register_background_tools(mcp)
-    mcp.run(transport="streamable-http", port=5001)
+    # stateless_http=True: each request gets its own session so the server can process
+    # requests concurrently. Default (stateful) processes one request at a time per session,
+    # so a slow tool (e.g. take_picture + describe_image) blocks the next request from
+    # being seen until it finishes — that’s the “request doesn’t show up for a long time” delay.
+    mcp.run(transport="streamable-http", port=5001, stateless_http=True)
 
 
 if __name__ == "__main__":

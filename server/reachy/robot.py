@@ -1,12 +1,29 @@
+import sys
+import time
 from collections.abc import Callable
 
-import controller
+from . import controller
 from reachy_mini import ReachyMini
 from fastmcp import FastMCP
 from fastmcp.utilities.types import Image
 from typing import Any
 
+
+def _log_tool_entered(name: str, **params: Any) -> None:
+    """Log as soon as the server's event loop invokes this tool (for latency debugging)."""
+    ts = time.strftime("%H:%M:%S", time.localtime())
+    parts = [f"{k}={v!r}" for k, v in params.items()]
+    params_str = ", ".join(parts) if parts else ""
+    msg = f"[{ts}] MCP tool entered: {name}({params_str})" if params_str else f"[{ts}] MCP tool entered: {name}"
+    # Truncate very long values (e.g. base64 image strings) so the log line stays readable
+    if len(msg) > 500:
+        msg = msg[:497] + "..."
+    print(msg, flush=True, file=sys.stderr)
+
+
 def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
+    """Register all robot tools. FastMCP handles sync tools automatically."""
+
     @mcp.tool()
     def goto_target(
         head_x: float = 0,
@@ -36,10 +53,18 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             method (InterpolationTechnique): Interpolation method to use ("linear", "minjerk", "ease", "cartoon"). Default is "minjerk".
             body_yaw (float | None): Body yaw angle in radians. Use None to keep the current yaw.
         """
-        print("calling goto_target")
-        controller.goto_target(get_mini(), head_x, head_y, head_z, head_roll, head_pitch, head_yaw, head_mm, head_degrees, body_yaw, duration, method)
+        _log_tool_entered(
+            "goto_target",
+            head_x=head_x, head_y=head_y, head_z=head_z,
+            head_roll=head_roll, head_pitch=head_pitch, head_yaw=head_yaw,
+            head_mm=head_mm, head_degrees=head_degrees, body_yaw=body_yaw,
+            duration=duration, method=method,
+        )
+        controller.goto_target(
+            get_mini(), head_x, head_y, head_z, head_roll, head_pitch, head_yaw,
+            head_mm, head_degrees, body_yaw, duration, method,
+        )
         return "Done"
-
 
     @mcp.tool()
     def take_picture(for_text_only_model: bool = True) -> tuple[str, Image | str]:
@@ -55,9 +80,8 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Returns:
             tuple[str, Image | str]: The path to the image and the image or text description of the image.
         """
-        print("calling take_picture")
+        _log_tool_entered("take_picture", for_text_only_model=for_text_only_model)
         return controller.take_picture(get_mini(), for_text_only_model)
-
 
     @mcp.tool()
     def describe_image(image: str, question: str = "What is in the image?") -> Any:
@@ -72,9 +96,8 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         Returns:
             tuple[str, str]: The path to the image and the text description of the image.
         """
-        print("calling describe_image with image: " + image + " and question: " + question)
+        _log_tool_entered("describe_image", image=image, question=question)
         return controller.describe_image(image, question)
-
 
     @mcp.tool()
     def detect_faces(image: str) -> Any:
@@ -84,7 +107,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             image: Either a local filename eg returned by take_picture, absolute path, 
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
-        print("calling detect_faces with image: " + image)
+        _log_tool_entered("detect_faces", image=image)
         return controller.detect_faces(image)
 
     @mcp.tool()
@@ -95,7 +118,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             image: Either a local filename eg returned by take_picture, absolute path, 
                     or an HTTP(S) URL to an image which will be downloaded and cached.
         """
-        print("calling analyze_face with image: " + image)
+        _log_tool_entered("analyze_face", image=image)
         return controller.analyze_face(image)
 
     @mcp.tool()
@@ -108,9 +131,8 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             person_name: The name of the person to save the image of. The image is copied
                 to `images/people/<person_name>` with a unique filename.
         """
-        print("calling save_image_person with image: " + image + " and person_name: " + person_name)
+        _log_tool_entered("save_image_person", image=image, person_name=person_name)
         return controller.save_image_person(image, person_name)
-
 
     @mcp.tool()
     def speak(text: str, forcefully_interrupt: bool = False) -> str:
@@ -122,26 +144,19 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
                 the current speech, clear any queued speech, and speak immediately.
                 If False (default) and the robot is speaking, queue this request to
                 execute after the current speech finishes.
-
-        Runs in a background thread to avoid blocking the FastMCP event loop.
         """
-        print(f"calling speak with text: {text}, forcefully_interrupt: {forcefully_interrupt}")
+        _log_tool_entered("speak", text=text, forcefully_interrupt=forcefully_interrupt)
         controller.speak(get_mini(), text, forcefully_interrupt)
         return "Done"
-
 
     @mcp.tool()
     def list_emotions() -> dict[str, str]:
         """List all emotions available in the emotions library."""
-        print("calling list_emotions")
+        _log_tool_entered("list_emotions")
         return controller.list_emotions()
 
     @mcp.tool()
     def play_emotion(emotion: str) -> str:
-        """Play an emotion.
-
-        Runs in a background thread to avoid AsyncToSync being used
-        from the same thread as the FastMCP async event loop.
-        """
-        print("calling play_emotion with emotion: " + emotion)
+        """Play an emotion."""
+        _log_tool_entered("play_emotion", emotion=emotion)
         return controller.play_emotion(get_mini(), emotion)

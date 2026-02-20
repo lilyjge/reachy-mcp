@@ -8,6 +8,7 @@ recorded_emotions = RecordedMoves(EMOTIONS_DATASET)
 move_names = recorded_emotions.list_moves()
 moves_and_descriptions = {name: recorded_emotions.get(name).description for name in move_names}
 
+
 def _play_emotion_worker(mini: ReachyMini, emotion: str) -> None:
     """Internal helper to play an emotion in a separate thread."""
     move = recorded_emotions.get(emotion)
