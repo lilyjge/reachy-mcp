@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from . import controller
 from .controller.stt_loop import start_stt_loop
 from reachy_mini import ReachyMini
+import argparse
 import shutil
 from fastmcp import FastMCP
 from .robot import register_robot_tools
@@ -40,13 +41,25 @@ async def lifespan(server):
 
 
 def main():
-    mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
-    register_robot_tools(mcp, lambda: mini)
-    # stateless_http=True: each request gets its own session so the server can process
-    # requests concurrently. Default (stateful) processes one request at a time per session,
-    # so a slow tool (e.g. take_picture + describe_image) blocks the next request from
-    # being seen until it finishes — that’s the “request doesn’t show up for a long time” delay.
-    mcp.run(transport="streamable-http", port=5001, stateless_http=True)
+    parser = argparse.ArgumentParser(description="Reachy Mini MCP Server")
+    parser.add_argument(
+        "--sim",
+        action="store_true",
+        help="Run with sim (no STT/camera lifespan)",
+    )
+    args = parser.parse_args()
+
+    if args.sim:
+        # Sim mode: no STT loop or camera lifespan
+        with ReachyMini() as m:
+            mcp = FastMCP("Reachy Mini Robot")
+            register_robot_tools(mcp, lambda: m)
+            mcp.run(transport="streamable-http", port=5001, stateless_http=True)
+    else:
+        # Real hardware mode: use lifespan with STT loop and camera
+        mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
+        register_robot_tools(mcp, lambda: mini)
+        mcp.run(transport="streamable-http", port=5001, stateless_http=True)
 
 
 if __name__ == "__main__":

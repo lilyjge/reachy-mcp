@@ -3,16 +3,17 @@
 
 # Get the script's directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-cd "$SCRIPT_DIR"
+# Change to the project root (one level up from scripts/)
+cd "$SCRIPT_DIR/.."
 
 # Activate virtual environment
-source reachy_mini_env/bin/activate
+source scripts/reachy_mini_env/bin/activate
 
 # Create logs directory
-mkdir -p logs
+mkdir -p scripts/logs
 
 # PID file to track all processes
-PID_FILE="logs/services.pid"
+PID_FILE="scripts/logs/services.pid"
 rm -f "$PID_FILE"
 
 echo "Starting Reachy MCP services..."
@@ -21,7 +22,7 @@ echo ""
 
 # Start Reachy Mini daemon
 echo "Starting Reachy Mini daemon..."
-uv run reachy-mini-daemon > logs/reachy_daemon.log 2>&1 &
+uv run reachy-mini-daemon --sim > scripts/logs/reachy_daemon.log 2>&1 &
 DAEMON_PID=$!
 echo $DAEMON_PID >> "$PID_FILE"
 echo "  ✓ Reachy daemon started (PID: $DAEMON_PID)"
@@ -31,7 +32,7 @@ sleep 8
 
 # Start MCP server
 echo "Starting MCP server..."
-python -m server > logs/mcp_server.log 2>&1 &
+python -m server --sim > scripts/logs/mcp_server.log 2>&1 &
 MCP_PID=$!
 echo $MCP_PID >> "$PID_FILE"
 echo "  ✓ MCP server started (PID: $MCP_PID)"
@@ -41,10 +42,11 @@ sleep 5
 
 # Start RAG agent
 echo "Starting RAG agent..."
-python -m client > logs/client.log 2>&1 &
+python -m client > scripts/logs/client.log 2>&1 &
 AGENT_PID=$!
 echo $AGENT_PID >> "$PID_FILE"
 echo "  ✓ RAG agent started (PID: $AGENT_PID)"
+
 
 echo ""
 echo "All services started successfully!"
