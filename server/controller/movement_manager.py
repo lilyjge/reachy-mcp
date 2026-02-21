@@ -67,6 +67,7 @@ class MovementManager:
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._breathing_active = False
+        self._head_tracking_active = False  # Flag to prevent breathing during head tracking
 
         # Cross-thread signalling
         self._command_queue: "Queue[Tuple[str, any]]" = Queue()
@@ -91,6 +92,18 @@ class MovementManager:
         """Mark the robot as active, preventing idle breathing."""
         with self._shared_state_lock:
             self._shared_last_activity_time = self._now()
+
+    def set_head_tracking_active(self, active: bool) -> None:
+        """Set whether head tracking is currently active (prevents breathing)."""
+        with self._shared_state_lock:
+            self._head_tracking_active = active
+            if active:
+                logger.debug("Head tracking active, breathing will be paused")
+
+    def get_time_since_last_activity(self) -> float:
+        """Get time in seconds since last activity was marked."""
+        with self._shared_state_lock:
+            return self._now() - self._shared_last_activity_time
 
     def is_idle(self) -> bool:
         """Return True when the robot has been inactive longer than the idle delay."""
@@ -140,19 +153,22 @@ class MovementManager:
             # Poll commands
             self._poll_commands()
 
-            # Sync activity time
+            # Sync activity time and head tracking state
             with self._shared_state_lock:
                 self._shared_last_activity_time = self._last_activity_time
+                head_tracking_active = self._head_tracking_active
 
             # Check if we should start breathing
+            # Don't breathe if there's recent activity OR head tracking is active
             idle_duration = current_time - self._last_activity_time
-            should_breathe = idle_duration >= self.idle_inactivity_delay
+            should_breathe = (idle_duration >= self.idle_inactivity_delay and 
+                            not head_tracking_active)
 
             if should_breathe and not self._breathing_active:
                 # Start breathing
                 self._start_breathing()
             elif not should_breathe and self._breathing_active:
-                # Stop breathing (activity detected elsewhere)
+                # Stop breathing (activity detected or head tracking started)
                 self._stop_breathing()
 
             # Update current move (breathing) if active

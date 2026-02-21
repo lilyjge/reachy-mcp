@@ -112,6 +112,20 @@ The robot features an automatic breathing animation inspired by the [reachy-pers
 - Antenna sway in opposite directions (15° amplitude)
 - Automatic pause when performing actions, resume after inactivity
 
+### Automatic Head Tracking
+
+The robot naturally follows your head movements side-to-side using OpenCV Haar cascade face detection. Inspired by the [hand tracker](https://huggingface.co/spaces/pollen-robotics/hand_tracker_v2/) approach, this runs automatically in the background:
+
+- **Eye contact trigger**: Automatically starts when you make eye contact (frontal face with both eyes visible)
+- **Side-to-side following**: Tracks your head position left/right at 20 FPS with smoothing to reduce jitter
+- **Natural motion**: Dead zone near center prevents small jitters, smooth interpolation for responsive tracking
+- **Intelligent pausing**: Automatically stops when the agent spawns a process or calls tools (speaking, answering questions, etc.)
+- **Returns to neutral**: Robot looks straight ahead when answering questions or performing tasks
+- **Breathing coordination**: Breathing animation pauses during head tracking, resumes when idle
+- **Continuous cycle**: After activity ends, returns to neutral and waits for next eye contact
+
+The head tracking loop runs continuously in the background, just like the STT loop, making the robot feel naturally responsive without requiring explicit commands.
+
 ## Credits
 
 This project incorporates code and concepts from:

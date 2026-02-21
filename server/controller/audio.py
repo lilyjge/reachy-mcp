@@ -9,6 +9,10 @@ import queue
 import threading
 from reachy_mini import ReachyMini
 from threading import Thread, Lock
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .movement_manager import MovementManager
 
 _TTS_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts.py")
 
@@ -17,6 +21,14 @@ _speak_lock = Lock()
 _current_speak_thread: Thread | None = None
 _speak_queue: queue.Queue[tuple[ReachyMini, str]] = queue.Queue()
 _stop_current_speak = False
+
+# Global reference to movement manager (set by server.py)
+_movement_manager: "MovementManager | None" = None
+
+def set_movement_manager(manager: "MovementManager") -> None:
+    """Set the global movement manager reference."""
+    global _movement_manager
+    _movement_manager = manager
 
 def _play(path: str, mini: ReachyMini) -> None:
     """Play audio file, checking for interruption periodically."""
@@ -141,6 +153,10 @@ def speak(mini: ReachyMini, text: str, forcefully_interrupt: bool = False) -> st
     Runs in a background thread to avoid blocking the FastMCP event loop.
     """
     global _current_speak_thread, _stop_current_speak
+    
+    # Mark activity to stop breathing and head tracking
+    if _movement_manager:
+        _movement_manager.mark_activity()
     
     with _speak_lock:
         is_speaking = _current_speak_thread is not None and _current_speak_thread.is_alive()

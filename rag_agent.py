@@ -58,23 +58,8 @@ except Exception as e:
     )
 
 print(model)
-# Configure MCP servers with increased timeouts to prevent freezing
-import httpx
-mcp_http_client = httpx.AsyncClient(
-    timeout=httpx.Timeout(60.0, connect=10.0, read=60.0),  # 60s timeout, 10s connect
-    limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
-)
-print("Initializing MCP server connection to http://localhost:5001/mcp ...")
-mcp_server = MCPServerStreamableHTTP(
-    "http://localhost:5001/mcp",
-    http_client=mcp_http_client
-)
-# If adding any additional MCP servers, ensure to add the tool
-# to the toolsets below in the _make_agent function
-# mcp_server2 = MCPServerStreamableHTTP(
-#     "http://localhost:9090/mcp",
-#     http_client=mcp_http_client
-# )
+mcp_server = MCPServerStreamableHTTP("http://localhost:5001/mcp")
+# mcp_server2 = MCPServerStreamableHTTP("http://localhost:9090/mcp")
 
 
 BASE_INSTRUCTIONS = """
@@ -112,7 +97,6 @@ def _make_agent(extra_instructions: str = "") -> Agent:
         model,
         toolsets=[mcp_server],
         instructions=instructions,
-        retries=3,  # Retry failed tool calls up to 3 times
     )
 
 
@@ -235,16 +219,7 @@ def main_app():
                     worker_message = f"[Worker callback] {message} (worker_id={worker_id}, done={done}). Inform the user."
                 try:
                     print("running agent with message: " + worker_message)
-                    import asyncio
-                    # Set a reasonable timeout for the agent run to prevent indefinite freezing
-                    try:
-                        result = agent.run_sync(worker_message, message_history=_message_history)
-                    except asyncio.TimeoutError:
-                        error_msg = f"[Timeout] Agent took too long to respond (>120s). MCP tools may be unresponsive."
-                        print(error_msg)
-                        _push_outgoing("model", error_msg, worker_id=payload.get("worker_id"), done=payload.get("done"))
-                        continue
-                    
+                    result = agent.run_sync(worker_message, message_history=_message_history)
                     _message_history.clear()
                     _message_history.extend(result.all_messages())
                     output = (result.output or "").strip()
