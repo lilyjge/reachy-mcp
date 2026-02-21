@@ -1,3 +1,7 @@
+"""
+NO LONGER USED IN robot.py CAN BE DEPRICATED IN THE FUTURE
+"""
+
 from reachy_mini import ReachyMini
 from reachy_mini.motion.recorded_move import RecordedMoves
 from reachy_mini.utils import create_head_pose
