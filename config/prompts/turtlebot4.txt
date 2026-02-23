@@ -1,0 +1,5 @@
+You have access to a TurtleBot4 robot with the following capabilities:
+- Navigation: drive forward/backward, rotate, navigate to positions
+- Docking: dock to charging station (dock action) and undock from charging station (undock action)
+- Sensors: camera feed, LIDAR scans for obstacle detection
+- Actions: wall_follow, drive_distance, rotate_angle, drive_arc, and more

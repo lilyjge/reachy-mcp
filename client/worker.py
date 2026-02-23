@@ -4,7 +4,7 @@ with the main process (uvicorn). Invoked by process.launch_process() via subproc
 
 Env (required): WORKER_ID, WORKER_SYSTEM_PROMPT
 Env (optional): CALLBACK_URL (default http://localhost:8765/event),
-                 MCP_SERVER_URL (default http://localhost:5001/mcp)
+                WORKER_MCP_SERVERS (comma-separated MCP server names; default "reachy-mini")
 """
 import asyncio
 import os
@@ -49,19 +49,24 @@ if __name__ == "__main__":
     worker_id = os.environ.get("WORKER_ID")
     system_prompt = os.environ.get("WORKER_SYSTEM_PROMPT", "")
     callback_url = os.environ.get("CALLBACK_URL", "http://localhost:8765/event")
+    mcp_servers_env = os.environ.get("WORKER_MCP_SERVERS", "")
+    if mcp_servers_env:
+        mcp_servers = [name.strip() for name in mcp_servers_env.split(",") if name.strip()]
+    else:
+        mcp_servers = ["reachy-mini"]
 
     if not worker_id:
         print("WORKER_ID env required", file=sys.stderr)
         sys.exit(1)
 
-    agent = _make_agent(system_prompt)
+    agent = _make_agent(system_prompt, mcp_servers=mcp_servers)
     first_message = (
         "Complete the assigned task to the best of your ability. "
         "If the task cannot be completed, be absolutely sure to have thought really hard and exhausted all possibilities before reporting to the user. "
         "Begin your task."
     )
     result, success = _agent_worker(agent, first_message, [])
-    task_preview = (system_prompt[:100] + "…") if len(system_prompt) > 100 else system_prompt
+    task_preview = (system_prompt[:200] + "…") if len(system_prompt) > 200 else system_prompt
     task_ctx = f"Task was successful. System prompt: {task_preview}. Agent output: {result.output}" if success else f"Task was not successful. System prompt: {task_preview}. Error: {result.output}"
     payload = {"worker_id": worker_id, "message": task_ctx, "done": success}
     try:

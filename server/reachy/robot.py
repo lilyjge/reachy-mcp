@@ -34,6 +34,7 @@ def _get_running_moves() -> list[dict[str, str]]:
     """Return list of currently running moves from the daemon."""
     resp = _daemon.get("/move/running")
     resp.raise_for_status()
+    print("get running moves", resp)
     return resp.json()
 
 def _go_to(head_x: float = 0,
@@ -92,6 +93,7 @@ def _stop_all_moves() -> list[str]:
         try:
             stop_resp = _daemon.post("/move/stop", json={"uuid": m["uuid"]})
             stop_resp.raise_for_status()
+            print("stop move", stop_resp)
             messages.append(stop_resp.json().get("message", f"Stopped {m['uuid']}"))
         except httpx.HTTPStatusError:
             messages.append(f"Failed to stop {m['uuid']}")
@@ -170,7 +172,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
             duration=duration,
             method=method,
         )
-        return f"Move started: {resp.json()['uuid']}"
+        return f"Move started: {resp}"
 
     @mcp.tool()
     def stop_move() -> str:
@@ -189,6 +191,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         _ensure_no_moves_running()
         resp = _daemon.post("/move/play/wake_up")
         resp.raise_for_status()
+        print("wake up", resp)
         return f"Wake up started: {resp.json()['uuid']}"
 
     @mcp.tool()
@@ -198,6 +201,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         _ensure_no_moves_running()
         resp = _daemon.post("/move/play/goto_sleep")
         resp.raise_for_status()
+        print("go to sleep", resp)
         return f"Sleep started: {resp.json()['uuid']}"
     
     @mcp.tool()
@@ -208,6 +212,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         try:
             resp = _daemon.get(f"/move/recorded-move-datasets/list/{_EMOTIONS_DATASET}")
             resp.raise_for_status()
+            print("list emotions", resp)
             moves = resp.json()
             return {m: m for m in moves}
         except httpx.HTTPStatusError:
@@ -229,6 +234,7 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
                 f"/move/play/recorded-move-dataset/{_EMOTIONS_DATASET}/{emotion}"
             )
             resp.raise_for_status()
+            print("play emotion", resp)
             return f"Emotion started: {resp.json()['uuid']}"
         except httpx.HTTPStatusError as e:
             # Fall back to SDK if the daemon endpoint fails

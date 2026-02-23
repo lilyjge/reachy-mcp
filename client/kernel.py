@@ -15,9 +15,10 @@ import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from client.utils import _make_agent, _agent_worker
+from client.utils import _agent_worker, KERNEL_INSTRUCTIONS, model
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 
 _outgoing_lock = threading.Lock()
@@ -54,7 +55,12 @@ def main_app():
         thread so all asyncio/anyio state (locks, event loop) lives in one thread, avoiding
         'bound to a different event loop' and cancel-scope errors when using run_sync().
         """
-        agent = _make_agent(mcp_servers=[MCPServerStreamableHTTP("http://localhost:7001/mcp")], process=False)
+        agent = Agent(
+            model,
+            toolsets=[MCPServerStreamableHTTP("http://localhost:7001/mcp")],
+            instructions=KERNEL_INSTRUCTIONS,
+            retries=10,
+        )
         while True:
             try:
                 payload = event_queue.get()

@@ -10,6 +10,7 @@ in the worker process, giving a cleaner environment.
 """
 import logging
 import os
+from client.utils import all_mcp_servers
 import subprocess
 import sys
 import uuid
@@ -23,8 +24,21 @@ _worker_system_prompts: dict[str, str] = {}
 mcp = FastMCP("rosaOS Kernel")
 
 
-@mcp.tool()
-def launch_process(system_prompt: str) -> str:
+@mcp.tool(description=f"""Spawn a background worker that runs an LLM agent with the given system prompt.
+
+    The worker runs in a separate subprocess with access to the MCP tools (e.g. robot
+    at 5001). When the worker completes, it POSTs to the client callback. Use the
+    returned worker_id to correlate the callback.
+
+    Args:
+        system_prompt: Instructions for the worker agent (e.g. surveillance task, patrol, etc.).
+        robots: List of robots for the worker to have access to through their MCP servers.
+            Must be one of the following: {", ".join([name for name in all_mcp_servers.keys()])}
+
+    Returns:
+        worker_id: The worker will include this in its completion callback.
+    """)
+def launch_process(system_prompt: str, robots: list[str] = ["reachy-mini"]) -> str:
     """Spawn a background worker that runs an LLM agent with the given system prompt.
 
     The worker runs in a separate subprocess with access to the MCP tools (e.g. robot
@@ -33,17 +47,31 @@ def launch_process(system_prompt: str) -> str:
 
     Args:
         system_prompt: Instructions for the worker agent (e.g. surveillance task, patrol, etc.).
+        robots: List of robots for the worker to have access to through their MCP servers.
 
     Returns:
         worker_id: The worker will include this in its completion callback.
     """
     worker_id = str(uuid.uuid4())
     logger.info("Launching worker subprocess worker_id=%s system_prompt=%s", worker_id, system_prompt)
+
     try:
         env = os.environ.copy()
         env["WORKER_ID"] = worker_id
         env["WORKER_SYSTEM_PROMPT"] = system_prompt
         env["CALLBACK_URL"] = callback_url
+
+        # Pass through the MCP server (robot) names this worker should have access to.
+        valid_robots: list[str] = []
+        for name in robots:
+            if name in all_mcp_servers:
+                valid_robots.append(name)
+            else:
+                logger.warning("Requested robot %s is not a known MCP server; ignoring", name)
+        if not valid_robots:
+            valid_robots = ["reachy-mini"]
+        env["WORKER_MCP_SERVERS"] = ",".join(valid_robots)
+
         _worker_processes[worker_id] = subprocess.Popen(
             [sys.executable, "-m", "client.worker"],
             env=env,
