@@ -3,57 +3,58 @@
 High-level layout with operating-system analogies: kernel, process manager, processes, and device layer.
 
 ```mermaid
-flowchart TB
-    subgraph User["User / Shell"]
-        Reachy["Reachy Mini"]
-        Chat["Browser UI or CLI"]
+flowchart LR
+    %% Entrypoints / user interface
+    subgraph Entrypoints["Entrypoints"]
+        ReachyUI["Reachy Mini UI<br>(primary)"]
+        WebUI["Browser UI/CLI"]
     end
 
-    subgraph Client["Client: Kernel, Process manager"]
-        direction TB
-        API["HTTP API /event, /stt"]
-        Queue["Event queue"]
-        Kernel["Kernel agent (single event_worker thread)"]
-        ProcMCP["Process manager (MCP server)"]
-        
-        API --> Queue
-        Queue --> Kernel
-        Kernel -->|"calls tools"| ProcMCP
+    %% rosaOS client side (MCP client)
+    subgraph RosaClient["rosaOS"]
+        Kernel["Kernel"]
+        Agents["Agentic processes <br> (MCP clients)"]
     end
 
-    subgraph Workers["Processes (agent workers)"]
-        direction TB
-        W1["Worker agent 1"]
-        W2["Worker agent 2"]
+    %% MCP servers (device drivers)
+    subgraph MCPS["MCP servers <br>(device drivers)"]
+        ReachyMCP["Reachy Mini"]
+        ROSdog["Dog (ROS client)"]
+        Lamp["Lamp"]
     end
 
-    subgraph Device["Device drivers: Reachy MCP"]
-        MCP["Reachy's MCP server (goto_target, take_picture, speak, …)"]
-        STT["STT loop (mic → VAD → transcribe)"]
-        Mini["ReachyMini SDK (lifespan)"]
-        MCP --> Mini
-        STT --> Mini
+    subgraph LampCode["Lamp hardware"]
+        LampSDK["Lamp SDK"]
     end
 
-    subgraph HW["Hardware"]
-        Daemon["Reachy daemon"]
-        Robot["Reachy Mini robot"]
-        Daemon --> Robot
+    %% ROS side
+    subgraph ROSWorld["ROS dog hardware"]
+        ROSserver["ROS server"]
     end
 
-    ProcMCP -->|"launch_process" tool | W1
-    ProcMCP -->|"launch_process" tool | W2
+    %% Hardware detail for Reachy
+    subgraph ReachyHW["Reachy hardware"]
+        ReachyDaemon["Reachy daemon/SDK"]
+    end
 
-    W1 -->|"tool calls"| MCP
-    W2 -->|"tool calls"| MCP
+    %% Entrypoints into rosaOS
+    ReachyUI -->|speech, vision| Kernel
+    WebUI -->|HTTP /chat| Kernel
 
-    W1 -->|"POST /event (callback)"| API
-    W2 -->|"POST /event (callback)"| API
+    %% MCP client/server relationships
+    Kernel --> Agents
+    Agents -->Kernel
+    Agents -->|"MCP tool calls"| ReachyMCP
+    Agents -->|"MCP tool calls"| ROSdog
+    Agents -->|"MCP tool calls"| Lamp
 
-    Chat --> API
-    Reachy --> API
-    STT -->|"POST /stt"| API
-    Mini --> Daemon
+    %% Reachy MCP talks to its ROS server
+    ReachyMCP -->|"Tool execution"| ReachyDaemon
+
+    %% ROS MCP talks to ROS graph and devices
+    ROSdog -->|"Tool execution"| ROSserver
+
+    Lamp -->|"Tool execution"| LampCode
 ```
 
 ## Flow summary
