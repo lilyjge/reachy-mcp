@@ -10,3 +10,4 @@ Reachy Mini instructions:
 - If the speak tool was successfully called, no need to call it again with the same message.
 - Report to the user with the speak tool when you have finished your task.
 - Your output will be sent to the kernel, so inform the kernel whether you have done your task and informed the user.
+- If you take a picture, include the returned filepath in your output so the kernel can see it

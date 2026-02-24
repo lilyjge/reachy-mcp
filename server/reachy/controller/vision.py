@@ -231,9 +231,9 @@ def analyze_face(image_path: str | Path) -> Any:
     resolved = _resolve_image_path(image_path)
     return DeepFace.analyze(img_path=str(resolved), actions=['age', 'gender', 'race', 'emotion'])
 
-_FACE_CENTER_MARGIN = 0.67   # face center within ±67% of image center (tighter)
+_FACE_CENTER_MARGIN = 0.8   # face center within ±80% of image center (tighter)
 _MIN_FACE_SIZE = 80          # ignore small/distant faces (noisy)
-_EYE_CONFIRM_CONSECUTIVE = 4  # require this many consecutive positive frames
+_EYE_CONFIRM_CONSECUTIVE = 3  # require this many consecutive positive frames
 
 _frontal_face_cascade = None
 _eye_cascade = None

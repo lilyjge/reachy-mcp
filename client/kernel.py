@@ -1,13 +1,5 @@
 """
 Main Pydantic AI agent for the Reachy Mini robot.
-
-Run normally: starts HTTP server with chat, callback endpoint, and push-on-event.
-  python rag_agent.py
-  Callback URL is hardcoded in the MCP server (http://localhost:8765/event).
-
-Run as worker (spawned by MCP spawn_background_instance):
-  python rag_agent.py --worker --worker-id UUID --system-prompt "Your task..."
-  Uses same MCP tools (including callback). Callback instructions are in the first user message, not system prompt.
 """
 
 import queue
@@ -16,6 +8,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from client.utils import _agent_worker, KERNEL_INSTRUCTIONS, model
+from client.process import mark_worker_done
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from pydantic_ai import Agent
@@ -77,6 +70,7 @@ def main_app():
                     worker_id = payload.get("worker_id", "?")
                     message = payload.get("message", "")
                     done = payload.get("done", False)
+                    mark_worker_done(worker_id)
                     worker_message = f"[Worker callback] {message} (worker_id={worker_id}, done={done})."
                 print("running agent with message: " + worker_message)
                 try:
