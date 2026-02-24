@@ -87,9 +87,10 @@ Or, when the agent is running, visit `http://localhost:8765/` in your browser.
 
 ### Configuration
 
-Customize system prompts in `client\utils.py`.
+Customize the system prompt for the kernel and the process agents in `client\kernel_utils.py` and `client\worker_utils.py` respectively.
 
-Configure robot MCP servers in `client\config.json`.
+Configure robot MCP servers in `client\config\`.
+Provide the server's name, URL, and description in `config\drivers.json` and place additional instructions for the LLM on how to use the robot in `config\prompts\server-name.txt`. 
 
 ## Technical Details
 

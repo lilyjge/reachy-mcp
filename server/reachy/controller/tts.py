@@ -11,13 +11,12 @@ dotenv.load_dotenv()
 GROQ_SPEECH_URL = "https://api.groq.com/openai/v1/audio/speech"
 GROQ_MODEL = "canopylabs/orpheus-v1-english"
 GROQ_VOICE = "autumn"
-GROQ_MAX_CHARS = 200
 
 
 def _try_groq_tts(text: str, path: str) -> bool:
     """Return True if WAV was written, False to fall back to pyttsx3."""
     api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key or len(text) > GROQ_MAX_CHARS:
+    if not api_key:
         return False
     try:
         import httpx
