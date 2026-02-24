@@ -75,6 +75,7 @@ def _dispatch_to_pool(worker_id: str, system_prompt: str, mcp_servers: list[str]
                 slot["stdin"].flush()
                 slot["busy"] = True
                 slot["worker_id"] = worker_id
+                _worker_system_prompts[worker_id] = system_prompt
                 return True
             except (BrokenPipeError, OSError) as e:
                 logger.warning("Pool worker write failed: %s", e)
@@ -85,16 +86,17 @@ def _dispatch_to_pool(worker_id: str, system_prompt: str, mcp_servers: list[str]
     return False
 
 
-def mark_worker_done(worker_id: str) -> None:
-    """Called when a worker finishes (callback received). Frees pool slot or removes one-off."""
+def mark_worker_done(worker_id: str) -> str:
+    """Called when a worker finishes (callback received). Frees pool slot or removes one-off. Returns system prompt of the worker."""
     for slot in _pool_slots:
         if slot.get("worker_id") == worker_id:
             slot["busy"] = False
             slot["worker_id"] = None
+            prompt = _worker_system_prompts.pop(worker_id, None)
             logger.debug("Pool slot freed for worker_id=%s", worker_id)
-            return
+            return prompt
     _worker_processes.pop(worker_id, None)
-    _worker_system_prompts.pop(worker_id, None)
+    return _worker_system_prompts.pop(worker_id, None)
 
 
 @mcp.tool(description=f"""Spawn a background worker that runs an LLM agent with the given system prompt.
@@ -161,6 +163,53 @@ def launch_process(system_prompt: str, robots: list[str] = ["reachy-mini"]) -> s
     except Exception as e:
         logger.exception("Failed to launch worker worker_id=%s: %s", worker_id, e)
         return "Failed to launch worker: " + str(e)
+
+@mcp.tool()
+def get_processes() -> list[dict]:
+    """Get the list and tasks of all currently running processes."""
+    return [{"worker_id": worker_id, "system_prompt": system_prompt} for worker_id, system_prompt in _worker_system_prompts.items()]
+
+@mcp.tool()
+def terminate_process(worker_id: str, force: bool = False) -> str:
+    """
+    Terminate the process with the given worker_id.
+    Args:
+        worker_id: The ID of the process to terminate.
+        force: If True, the process will be terminated even if it is a pool worker.
+            Keep this False in most cases unless it is absolutely necessary.
+    Returns:
+        A message indicating the result of the termination.
+    """
+    # Check pool slots first (task running in a long-lived worker)
+    for i, slot in enumerate(_pool_slots):
+        if slot.get("worker_id") == worker_id:
+            if not force:
+                return (
+                    "This task is running in a pool worker (long-lived process). "
+                    "Terminating the task would be inefficient."
+                    "Use force=True to terminate the task anyway."
+                )
+            prompt = _worker_system_prompts.pop(worker_id, "") or "(pool task)"
+            try:
+                slot["process"].terminate()
+            except OSError:
+                pass
+            _pool_slots.pop(i)
+            logger.info("Terminated pool worker task worker_id=%s", worker_id)
+            preview = (prompt[:200] + "…") if len(prompt) > 200 else (prompt or "?")
+            return f"Process in pool worker with the task '{preview}' terminated successfully."
+    # One-off subprocess
+    if worker_id not in _worker_processes:
+        return "Process not found."
+    prompt = _worker_system_prompts.get(worker_id, "")
+    try:
+        _worker_processes[worker_id].terminate()
+    except OSError:
+        pass
+    mark_worker_done(worker_id)
+    logger.info("Terminated one-off worker worker_id=%s", worker_id)
+    preview = (prompt[:200] + "…") if prompt and len(prompt) > 200 else (prompt or "?")
+    return f"Process with the task '{preview}' terminated successfully."
 
 def start_process_server() -> None:
     logger.info("Starting process manager MCP server")
