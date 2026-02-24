@@ -15,7 +15,8 @@ import asyncio
 import json
 import os
 import sys
-from client.utils import _make_agent, _agent_worker
+from client.common import agent_worker
+from client.worker_utils import make_agent
 import httpx
 # Configure anyio to use asyncio backend explicitly before any imports that use it
 os.environ.setdefault("ANYIO_BACKEND", "asyncio")
@@ -46,13 +47,13 @@ if sys.platform == "win32":
 
 def _run_one_task(worker_id: str, system_prompt: str, mcp_servers: list[str], callback_url: str) -> bool:
     """Run a single agent task and POST callback. Returns success."""
-    agent = _make_agent(system_prompt, mcp_servers=mcp_servers)
+    agent = make_agent(system_prompt, mcp_servers=mcp_servers)
     first_message = (
         "Complete the assigned task to the best of your ability. "
         "If the task cannot be completed, be absolutely sure to have thought really hard and exhausted all possibilities before reporting to the user. "
         "Begin your task."
     )
-    result, success = _agent_worker(agent, first_message, [])
+    result, success = agent_worker(agent, first_message, [])
     task_preview = (system_prompt[:200] + "…") if len(system_prompt) > 200 else system_prompt
     task_ctx = (
         f"Task was successful. System prompt: {task_preview}. Agent output: {result.output}"

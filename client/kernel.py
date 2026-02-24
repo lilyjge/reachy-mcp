@@ -7,7 +7,8 @@ import os
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from client.utils import _agent_worker, KERNEL_INSTRUCTIONS, model
+from client.common import agent_worker, model
+from client.kernel_utils import KERNEL_INSTRUCTIONS
 from client.process import mark_worker_done
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
@@ -74,7 +75,7 @@ def main_app():
                     worker_message = f"[Worker callback] {message} (worker_id={worker_id}, done={done})."
                 print("running agent with message: " + worker_message)
                 try:
-                    result, success = _agent_worker(agent, worker_message, _message_history)
+                    result, success = agent_worker(agent, worker_message, _message_history)
                     if not success:
                         error_msg = (result.output or "Unknown error").strip()
                         print(f"Agent run failed: {error_msg}")

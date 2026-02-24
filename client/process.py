@@ -11,7 +11,7 @@ spawns a one-off subprocess when all pool workers are busy.
 import json
 import logging
 import os
-from client.utils import all_mcp_servers
+from client.kernel_utils import validated_mcp_servers
 import subprocess
 import sys
 import uuid
@@ -108,7 +108,7 @@ def mark_worker_done(worker_id: str) -> str:
     Args:
         system_prompt: Instructions for the worker agent (e.g. surveillance task, patrol, etc.).
         robots: List of robots for the worker to have access to through their MCP servers.
-            Must be one of the following: {", ".join([name for name in all_mcp_servers.keys()])}
+            Must be one of the following: {", ".join([name for name in validated_mcp_servers.keys()])}
 
     Returns:
         worker_id: The worker will include this in its completion callback.
@@ -129,7 +129,7 @@ def launch_process(system_prompt: str, robots: list[str] = ["reachy-mini"]) -> s
     worker_id = str(uuid.uuid4())
     valid_robots: list[str] = []
     for name in robots:
-        if name in all_mcp_servers:
+        if name in validated_mcp_servers:
             valid_robots.append(name)
         else:
             logger.warning("Requested robot %s is not a known MCP server; ignoring", name)
