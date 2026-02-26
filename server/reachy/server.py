@@ -12,6 +12,7 @@ import argparse
 import shutil
 from fastmcp import FastMCP
 from .robot import register_robot_tools
+import os
 # Set by lifespan when the server starts; tools resolve it via getter so registration can happen before run().
 mini = None
 _stt_stop = None
@@ -49,17 +50,18 @@ def main():
     )
     args = parser.parse_args()
 
+    port = int(os.environ.get("REACHY_MCP_PORT", "5001"))
     if args.sim:
         # Sim mode: no STT loop or camera lifespan
         with ReachyMini() as m:
             mcp = FastMCP("Reachy Mini Robot")
             register_robot_tools(mcp, lambda: m)
-            mcp.run(transport="streamable-http", port=5001, stateless_http=True)
+            mcp.run(transport="streamable-http", port=port, stateless_http=True)
     else:
         # Real hardware mode: use lifespan with STT loop and camera
         mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
         register_robot_tools(mcp, lambda: mini)
-        mcp.run(transport="streamable-http", port=5001, stateless_http=True)
+        mcp.run(transport="streamable-http", port=port, stateless_http=True)
 
 
 if __name__ == "__main__":

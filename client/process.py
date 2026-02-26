@@ -19,7 +19,11 @@ from fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
 
-callback_url = "http://localhost:8765/event"
+def _callback_url() -> str:
+    port = os.environ.get("RAG_AGENT_PORT", "8765")
+    return os.environ.get("CALLBACK_URL", f"http://localhost:{port}/event")
+
+callback_url = _callback_url()
 POOL_SIZE = 2
 
 # Pool: long-lived workers that accept tasks via stdin. Each slot: process, stdin pipe, busy, worker_id.
@@ -38,7 +42,7 @@ def _ensure_pool() -> None:
     while len(_pool_slots) < POOL_SIZE:
         env = os.environ.copy()
         env["WORKER_POOL"] = "1"
-        env["CALLBACK_URL"] = callback_url
+        env["CALLBACK_URL"] = _callback_url()
         try:
             proc = subprocess.Popen(
                 [sys.executable, "-m", "client.worker"],
@@ -148,7 +152,7 @@ def launch_process(system_prompt: str, robots: list[str] = ["reachy-mini"]) -> s
         env = os.environ.copy()
         env["WORKER_ID"] = worker_id
         env["WORKER_SYSTEM_PROMPT"] = system_prompt
-        env["CALLBACK_URL"] = callback_url
+        env["CALLBACK_URL"] = _callback_url()
         env["WORKER_MCP_SERVERS"] = ",".join(valid_robots)
 
         _worker_processes[worker_id] = subprocess.Popen(
@@ -214,4 +218,5 @@ def terminate_process(worker_id: str, force: bool = False) -> str:
 def start_process_server() -> None:
     logger.info("Starting process manager MCP server")
     _ensure_pool()
-    mcp.run(transport="streamable-http", port=7001)
+    port = int(os.environ.get("PROCESS_SERVER_PORT", "7001"))
+    mcp.run(transport="streamable-http", port=port)

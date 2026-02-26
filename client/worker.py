@@ -75,7 +75,10 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
         datefmt="%H:%M:%S",
     )
-    callback_url = os.environ.get("CALLBACK_URL", "http://localhost:8765/event")
+    from client.common import init_all
+    init_all()
+    rag_port = os.environ.get("RAG_AGENT_PORT", "8765")
+    callback_url = os.environ.get("CALLBACK_URL", f"http://localhost:{rag_port}/event")
 
     if os.environ.get("WORKER_POOL", "").strip().lower() in ("1", "true"):
         # Pool mode: read tasks from stdin (one JSON line per task)

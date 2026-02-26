@@ -9,13 +9,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import threading
 import time
 
 import httpx
 
-DEFAULT_BASE = "http://localhost:8765"
+DEFAULT_BASE = os.environ.get("RAG_AGENT_URL") or "http://localhost:%s" % os.environ.get("RAG_AGENT_PORT", "8765")
 
 
 def poll_updates(base_url: str, interval: float = 1.5) -> None:

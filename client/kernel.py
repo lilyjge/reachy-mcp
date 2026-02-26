@@ -51,7 +51,10 @@ def main_app():
         """
         agent = Agent(
             model,
-            toolsets=[MCPServerStreamableHTTP("http://localhost:7001/mcp")],
+            toolsets=[MCPServerStreamableHTTP(
+                os.environ.get("PROCESS_SERVER_URL")
+                or "http://localhost:%s/mcp" % os.environ.get("PROCESS_SERVER_PORT", "7001")
+            )],
             instructions=KERNEL_INSTRUCTIONS,
             retries=10,
         )

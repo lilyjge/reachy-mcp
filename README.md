@@ -5,26 +5,43 @@ ROS Agentic Operating System: Control robots with LLMs through MCP with Reachy M
 ## Requirements
 Using Reachy Mini Lite for easy media stream.
 
-For LLM client, currently supports local endpoint or Groq API.
-Defaults to local and if endpoint is not accessible, uses Groq.
-Currently using gpt-oss-120b.
+The client supports either a **local OpenAI-compatible LLM** (e.g. vLLM) or the **Groq API**. Choose one via CLI or environment variables.
 
-### Local LLM
-For local setup, SSH into a GPU server and deploy with [vLLM](https://docs.vllm.ai/en/latest/getting_started/quickstart/):
+### Local LLM (OpenAI-compatible endpoint)
+For local inference, run an OpenAI-compatible server (e.g. [vLLM](https://docs.vllm.ai/en/latest/getting_started/quickstart/)) and point the client at it:
 
-`vllm serve openai/gpt-oss-120b --tool-call-parser openai --enable-auto-tool-choice --port 6000`
+```bash
+# On the machine with the GPU (or with port forwarding):
+vllm serve openai/gpt-oss-120b --tool-call-parser openai --enable-auto-tool-choice --port 6000
+```
 
-This is done in VS Code for the automatic port forwarding. To test this is successfully, run this locally and you should see the model:
+Start the client with `--local` and optionally `--endpoint` (port, default 6000):
 
-`curl http://localhost:6000/v1/models`
+```bash
+python -m client --local
+python -m client --local --endpoint 6000
+```
 
-This endpoint is currently hardcoded. Change in code if different.
+Or use environment variables (see [Environment variables](#environment-variables)): `LOCAL_LLM=1`, `LOCAL_LLM_PORT=6000`.
+
+To verify the endpoint: `curl http://localhost:6000/v1/models` (or use `https` if your server uses TLS).
 
 ### Groq API
-[Groq](https://console.groq.com/keys) is an inference provider with a free tier for personal use but has limits.
-To use it, get an API key and set it as an environment variable.
+[Groq](https://console.groq.com/keys) provides inference with a free tier (with limits). **You must set an API key** to use Groq:
 
-`GROQ_API_KEY=...`
+- **macOS/Linux:** `export GROQ_API_KEY=your_key`
+- **Windows (PowerShell):** `$env:GROQ_API_KEY="your_key"`
+
+Get a key at [console.groq.com/keys](https://console.groq.com/keys).
+
+Then start the client without `--local` and optionally choose a model with `--model`:
+
+```bash
+python -m client
+python -m client --model llama-3.3-70b-versatile
+```
+
+Supported Groq tool-use models include: `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`, `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `moonshotai/kimi-k2-instruct-0905`, `qwen/qwen3-32b`, and `meta-llama/llama-4-scout-17b-16e-instruct`. Default is `openai/gpt-oss-120b`.
 
 Required for image analysis and better TTS experience. 
 
@@ -73,24 +90,54 @@ Start the Reachy Mini's MCP server on port 5001:
 
 `python -m server`
 
-Start the operating system's client on port 8765:
+Start the operating system's client (default port 8765):
 
-`python -m client`
+```bash
+python -m client                    # Groq (requires GROQ_API_KEY)
+python -m client --local             # Local LLM at port 6000
+python -m client --local --endpoint 6000 --port 8765
+```
 
 Now you can talk to the Reachy Mini directly.
 
-If you want to directly chat with LLM without going through Reachy, you can launch a CLI chat:
+To chat via CLI instead of the robot:
 
-`python -m client.chat.client_cli`
+```bash
+python -m client.chat.client_cli
+# Optional: --base-url http://localhost:8765  (or set RAG_AGENT_PORT)
+```
 
-Or, when the agent is running, visit `http://localhost:8765/` in your browser.
+Or, when the agent is running, visit `http://localhost:8765/` in your browser (or the port you set with `--port` / `RAG_AGENT_PORT`).
+
+### Environment variables
+
+All ports and the LLM source can be overridden by environment variables so scripts and deployed setups don't rely on CLI flags.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GROQ_API_KEY` | — | **Required** when not using `--local`. Groq API key from [console.groq.com/keys](https://console.groq.com/keys). |
+| `LOCAL_LLM` | — | Set to `1` or `true` to use local OpenAI-compatible endpoint. |
+| `LOCAL_LLM_PORT` | `6000` | Port of local LLM when `LOCAL_LLM` is set. |
+| `LOCAL_LLM_ENDPOINT` | — | Full base URL (e.g. `https://localhost:6000/v1`) overrides port. |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq model when not using local LLM. |
+| `RAG_AGENT_PORT` | `8765` | Client app (kernel + chat) port. |
+| `RAG_AGENT_URL` | — | Full base URL for chat CLI (e.g. `http://localhost:8765`). |
+| `PROCESS_SERVER_PORT` | `7001` | Process manager MCP server port. |
+| `PROCESS_SERVER_URL` | — | Full process server URL (e.g. `http://localhost:7001/mcp`). |
+| `REACHY_MCP_PORT` | `5001` | Reachy Mini MCP server port (when starting `python -m server`). |
+| `STT_CALLBACK_URL` | from `RAG_AGENT_PORT` | Where the server POSTs transcribed speech (default `http://localhost:{RAG_AGENT_PORT}/stt`). |
+| `ROSAOS_CONFIG_DIR` | `config` | Directory for `drivers.json`, `kernel.txt`, `process.txt`, and `prompts/`. |
 
 ### Configuration
 
-Customize the system prompt for the kernel and the process agents in `client\kernel_utils.py` and `client\worker_utils.py` respectively.
+Agent system prompts and robot config live under the **config** directory (or `ROSAOS_CONFIG_DIR`):
 
-Configure robot MCP servers in `client\config\`.
-Provide the server's name, URL, and description in `config\drivers.json` and place additional instructions for the LLM on how to use the robot in `config\prompts\server-name.txt`. 
+- **`config/kernel.txt`** — System prompt for the kernel agent (one placeholder: `{robot_list}`).
+- **`config/process.txt`** — System prompt template for process agents (placeholders: `{robot_instructions}`, `{kernel_instructions}`).
+- **`config/drivers.json`** — MCP server names, URLs, and descriptions. If you change `REACHY_MCP_PORT`, update the `reachy-mini` URL in this file to match (e.g. `http://localhost:5001/mcp`).
+- **`config/prompts/<server_name>.txt`** — Per-robot instructions for the LLM (e.g. `reachy-mini.txt`).
+
+Edit these files to customize behavior without changing code. 
 
 ## Technical Details
 

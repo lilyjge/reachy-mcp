@@ -26,7 +26,7 @@ GROQ_TRANSCRIPTIONS_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_WHISPER_MODEL = "whisper-large-v3-turbo"
 
 # Where to POST transcribed text (client endpoint)
-STT_URL = os.environ.get("STT_CALLBACK_URL", "http://localhost:8765/stt")
+STT_URL = os.environ.get("STT_CALLBACK_URL") or "http://localhost:%s/stt" % os.environ.get("RAG_AGENT_PORT", "8765")
 
 # VAD settings: how long silence before we consider speech finished
 SILENCE_THRESHOLD_SEC = 1.5  # seconds of silence before transcribing

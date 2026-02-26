@@ -132,6 +132,8 @@ def _play_emotion(emotion: str) -> str:
     emotion_to_play = emotion
     if variants:
         emotion_to_play = random.choice(variants)
+    else:
+        raise ValueError(f"No variants found for emotion: {emotion}")
     # Play via daemon's recorded move dataset endpoint
     try:
         resp = _daemon.post(
@@ -140,11 +142,8 @@ def _play_emotion(emotion: str) -> str:
         resp.raise_for_status()
         print("play emotion", resp)
         return f"Emotion started: {resp.json()['uuid']}"
-    except httpx.HTTPStatusError as e:
-        # Fall back to SDK if the daemon endpoint fails
-        if e.response.status_code == 404:
-            return f"Failed to play emotion: {emotion}"
-        raise
+    except httpx.HTTPStatusError:
+        raise ValueError(f"Failed to play emotion: {emotion}")
 
 def _doa_degrees_to_head_yaw(angle_degrees: float) -> float:
     """Convert DoA angle frame to Reachy head_yaw degrees.
