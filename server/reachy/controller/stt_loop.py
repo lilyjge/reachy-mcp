@@ -361,30 +361,31 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
     capture_thread.start()
     listening_thread.start()
 
-    audio = None
     while not stop.is_set():
         print(f"waiting for eye contact or wake word '{WAKE_WORD}'...")
         if not _wait_for_trigger(mini, utterance_queue, stop):
             continue
         listening.set()  # start the listening pose thread while we wait for the user to speak after the trigger
         print("capture triggered, waiting for speech...")
-        while audio is None:
-            try:
-                audio, sr, _ = utterance_queue.get(timeout=10)
-            except queue.Empty:
-                continue
+        audio = None
+        try:
+            audio, sr, _ = utterance_queue.get(timeout=20)
+        except queue.Empty:
+            print("No speech detected after trigger.")
+            listening.clear()  # stop the listening pose thread once we have a transcription to send
+            continue
         print("transcribing")
         text = _transcribe(audio, sr)
         if not text:
             continue
-        print("posting to client", text)
+        print("posting to client:", text)
         listening.clear()  # stop the listening pose thread once we have a transcription to send
         try:
             httpx.post(url, json={"text": text}, timeout=5.0)
         except httpx.HTTPError as e:
             print(f"Error posting to client in stt loop: {e}")
 
-    listening.set()  # stop the listening pose thread
+    listening.clear()  # stop the listening pose thread
     listening_thread.join(timeout=1.0)
     capture_thread.join(timeout=1.0)
 

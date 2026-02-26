@@ -31,7 +31,7 @@ def _get_running_moves() -> list[dict[str, str]]:
     """Return list of currently running moves from the daemon."""
     resp = _daemon.get("/move/running")
     resp.raise_for_status()
-    print("get running moves", resp)
+    # print("get running moves", resp)
     return resp.json()
 
 def _go_to(head_x: float = 0,
@@ -140,7 +140,7 @@ def _play_emotion(emotion: str) -> str:
             f"/move/play/recorded-move-dataset/{_EMOTIONS_DATASET}/{emotion_to_play}"
         )
         resp.raise_for_status()
-        print("play emotion", resp)
+        print("play emotion: ", resp)
         return f"Emotion started: {resp.json()['uuid']}"
     except httpx.HTTPStatusError:
         raise ValueError(f"Failed to play emotion: {emotion}")
