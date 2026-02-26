@@ -2,6 +2,14 @@
 
 ROS Agentic Operating System: Control robots with LLMs through MCP with Reachy Mini as the interface.
 
+## Repo Cloning
+
+Cloning this repo requires the use of the recursive flag to download all submodules (ros-mcp-server). Further instructions to setup ros-mcp-server are in the rosaOS setup file found in the submodule directory
+
+```bash
+git clone --recursive
+```
+
 ## Requirements
 Using Reachy Mini Lite for easy media stream.
 

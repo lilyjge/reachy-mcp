@@ -1,0 +1,3 @@
+[submodule "server/ros-mcp-server"]
+	path = server/ros-mcp-server
+	url = https://github.com/Kushion32/ros-mcp-server
