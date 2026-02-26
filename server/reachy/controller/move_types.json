@@ -1,0 +1,197 @@
+{
+  "amazed": [
+    "amazed1"
+  ],
+  "anxiety": [
+    "anxiety1"
+  ],
+  "attentive": [
+    "attentive1",
+    "attentive2"
+  ],
+  "boredom": [
+    "boredom1",
+    "boredom2"
+  ],
+  "calming": [
+    "calming1"
+  ],
+  "cheerful": [
+    "cheerful1"
+  ],
+  "come": [
+    "come1"
+  ],
+  "confused": [
+    "confused1"
+  ],
+  "contempt": [
+    "contempt1"
+  ],
+  "curious": [
+    "curious1"
+  ],
+  "dance": [
+    "dance1",
+    "dance2",
+    "dance3"
+  ],
+  "disgusted": [
+    "disgusted1"
+  ],
+  "displeased": [
+    "displeased1",
+    "displeased2"
+  ],
+  "downcast": [
+    "downcast1"
+  ],
+  "dying": [
+    "dying1"
+  ],
+  "electric": [
+    "electric1"
+  ],
+  "enthusiastic": [
+    "enthusiastic1",
+    "enthusiastic2"
+  ],
+  "exhausted": [
+    "exhausted1"
+  ],
+  "fear": [
+    "fear1"
+  ],
+  "frustrated": [
+    "frustrated1"
+  ],
+  "furious": [
+    "furious1"
+  ],
+  "go_away": [
+    "go_away1"
+  ],
+  "grateful": [
+    "grateful1"
+  ],
+  "helpful": [
+    "helpful1",
+    "helpful2"
+  ],
+  "impatient": [
+    "impatient1",
+    "impatient2"
+  ],
+  "incomprehensible": [
+    "incomprehensible2"
+  ],
+  "indifferent": [
+    "indifferent1"
+  ],
+  "inquiring": [
+    "inquiring1",
+    "inquiring2",
+    "inquiring3"
+  ],
+  "irritated": [
+    "irritated1",
+    "irritated2"
+  ],
+  "laughing": [
+    "laughing1",
+    "laughing2"
+  ],
+  "lonely": [
+    "lonely1"
+  ],
+  "lost": [
+    "lost1"
+  ],
+  "loving": [
+    "loving1"
+  ],
+  "no": [
+    "no1"
+  ],
+  "no_excited": [
+    "no_excited1"
+  ],
+  "no_sad": [
+    "no_sad1"
+  ],
+  "oops": [
+    "oops1",
+    "oops2"
+  ],
+  "proud": [
+    "proud1",
+    "proud2",
+    "proud3"
+  ],
+  "rage": [
+    "rage1"
+  ],
+  "relief": [
+    "relief1",
+    "relief2"
+  ],
+  "reprimand": [
+    "reprimand1",
+    "reprimand2",
+    "reprimand3"
+  ],
+  "resigned": [
+    "resigned1"
+  ],
+  "sad": [
+    "sad1",
+    "sad2"
+  ],
+  "scared": [
+    "scared1"
+  ],
+  "serenity": [
+    "serenity1"
+  ],
+  "shy": [
+    "shy1"
+  ],
+  "sleep": [
+    "sleep1"
+  ],
+  "success": [
+    "success1",
+    "success2"
+  ],
+  "surprised": [
+    "surprised1",
+    "surprised2"
+  ],
+  "thoughtful": [
+    "thoughtful1",
+    "thoughtful2"
+  ],
+  "tired": [
+    "tired1"
+  ],
+  "uncertain": [
+    "uncertain1"
+  ],
+  "uncomfortable": [
+    "uncomfortable1"
+  ],
+  "understanding": [
+    "understanding1",
+    "understanding2"
+  ],
+  "welcoming": [
+    "welcoming1",
+    "welcoming2"
+  ],
+  "yes": [
+    "yes1"
+  ],
+  "yes_sad": [
+    "yes_sad1"
+  ]
+}
