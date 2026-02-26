@@ -2,14 +2,6 @@
 
 ROS Agentic Operating System: Control robots with LLMs through MCP with Reachy Mini as the interface.
 
-## Repo Cloning
-
-Cloning this repo requires the use of the recursive flag to download all submodules (ros-mcp-server). Further instructions to setup ros-mcp-server are in the rosaOS setup file found in the submodule directory
-
-```bash
-git clone --recursive
-```
-
 ## Requirements
 Using Reachy Mini Lite for easy media stream.
 
@@ -23,15 +15,6 @@ For local inference, run an OpenAI-compatible server (e.g. [vLLM](https://docs.v
 vllm serve openai/gpt-oss-120b --tool-call-parser openai --enable-auto-tool-choice --port 6000
 ```
 
-Start the client with `--local` and optionally `--endpoint` (port, default 6000):
-
-```bash
-python -m client --local
-python -m client --local --endpoint 6000
-```
-
-Or use environment variables (see [Environment variables](#environment-variables)): `LOCAL_LLM=1`, `LOCAL_LLM_PORT=6000`.
-
 To verify the endpoint: `curl http://localhost:6000/v1/models` (or use `https` if your server uses TLS).
 
 ### Groq API
@@ -42,13 +25,6 @@ To verify the endpoint: `curl http://localhost:6000/v1/models` (or use `https` i
 
 Get a key at [console.groq.com/keys](https://console.groq.com/keys).
 
-Then start the client without `--local` and optionally choose a model with `--model`:
-
-```bash
-python -m client
-python -m client --model llama-3.3-70b-versatile
-```
-
 Supported Groq tool-use models include: `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`, `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `moonshotai/kimi-k2-instruct-0905`, `qwen/qwen3-32b`, and `meta-llama/llama-4-scout-17b-16e-instruct`. Default is `openai/gpt-oss-120b`.
 
 Required for image analysis and better TTS experience. 
@@ -57,8 +33,10 @@ Required for image analysis and better TTS experience.
 
 Developed with Python 3.12.
 
+Cloning this repo requires the use of the recursive flag to download all submodules (ros-mcp-server). Further instructions to setup ros-mcp-server are in the rosaOS setup file found in the submodule directory
+
 ```
-git clone https://github.com/lilyjge/reachy-mcp.git
+git clone https://github.com/lilyjge/reachy-mcp.git --recursive
 cd reachy-mcp
 python -m venv reachy_mini_env
 .\reachy_mini_env\Scripts\activate.ps1  # Windows
@@ -67,6 +45,7 @@ python -m venv reachy_mini_env
 # Install dependencies
 pip install -r requirements.txt
 ```
+
 ## Usage
 
 ### Quick Start (All Services)
@@ -94,16 +73,21 @@ Start Reachy Mini's robot daemon server on the default port 8000:
 
 `uv run reachy-mini-daemon`
 
-Start the Reachy Mini's MCP server on port 5001:
+Start the Reachy Mini's MCP server on port 5001. 
+For TTS, we support ElevenLabs API, Groq API, or the local pyttsx3 package. 
 
-`python -m server`
+```bash
+python -m server
+python -m server --tts-elevenlabs --tts-voice M4zkunnpRihDKTNF0D7f # Use ElevenLabs
+```
 
-Start the operating system's client (default port 8765):
+Start the operating system's client (default port 8765). 
+To use your own OpenAI compatible endpoint for the agents, start the client with `--local` and optionally `--endpoint` (port, default 6000):
 
 ```bash
 python -m client                    # Groq (requires GROQ_API_KEY)
 python -m client --local             # Local LLM at port 6000
-python -m client --local --endpoint 6000 --port 8765
+python -m client --model moonshotai/kimi-k2-instruct-0905 # Specify Groq model
 ```
 
 Now you can talk to the Reachy Mini directly.
@@ -134,6 +118,11 @@ All ports and the LLM source can be overridden by environment variables so scrip
 | `PROCESS_SERVER_URL` | — | Full process server URL (e.g. `http://localhost:7001/mcp`). |
 | `REACHY_MCP_PORT` | `5001` | Reachy Mini MCP server port (when starting `python -m server`). |
 | `STT_CALLBACK_URL` | from `RAG_AGENT_PORT` | Where the server POSTs transcribed speech (default `http://localhost:{RAG_AGENT_PORT}/stt`). |
+| `TTS_ENGINE` | `groq` | TTS backend: `groq` or `elevenlabs`. |
+| `TTS_VOICE` | `autumn` | Preferred TTS voice name / ID (used for Groq Orpheus and ElevenLabs). |
+| `ELEVENLABS_API_KEY` | — | ElevenLabs API key when using `TTS_ENGINE=elevenlabs` or `--tts-elevenlabs`. |
+| `ELEVENLABS_VOICE_ID` | from `TTS_VOICE` | Optional explicit ElevenLabs voice ID. |
+| `ELEVENLABS_MODEL` | `eleven_flash_v2_5` | ElevenLabs TTS model ID. |
 | `ROSAOS_CONFIG_DIR` | `config` | Directory for `drivers.json`, `kernel.txt`, `process.txt`, and `prompts/`. |
 
 ### Configuration
@@ -146,6 +135,13 @@ Agent system prompts and robot config live under the **config** directory (or `R
 - **`config/prompts/<server_name>.txt`** — Per-robot instructions for the LLM (e.g. `reachy-mini.txt`).
 
 Edit these files to customize behavior without changing code. 
+
+### Debugging
+
+Debug MCP servers using the MCP Inspector Tool (requires Node installation):
+```bash
+npx @modelcontextprotocol/inspector
+```
 
 ## Technical Details
 

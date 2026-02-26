@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from . import controller
 from .controller.stt_loop import start_stt_loop
 from reachy_mini import ReachyMini
-import argparse
 import shutil
 from fastmcp import FastMCP
 from .robot import register_robot_tools
@@ -41,17 +40,20 @@ async def lifespan(server):
             pass
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Reachy Mini MCP Server")
-    parser.add_argument(
-        "--sim",
-        action="store_true",
-        help="Run with sim (no STT/camera lifespan)",
-    )
-    args = parser.parse_args()
-
+def main(sim: bool = False, tts_elevenlabs: bool = False, tts_voice: str | None = None) -> None:
     port = int(os.environ.get("REACHY_MCP_PORT", "5001"))
-    if args.sim:
+
+    # Configure TTS engine/voice for the controller TTS subprocess.
+    if tts_voice:
+        os.environ["TTS_VOICE"] = tts_voice
+    os.environ.setdefault("TTS_VOICE", os.environ.get("TTS_VOICE", "autumn"))
+
+    if tts_elevenlabs:
+        os.environ["TTS_ENGINE"] = "elevenlabs"
+    else:
+        os.environ.setdefault("TTS_ENGINE", "groq")
+
+    if sim:
         # Sim mode: no STT loop or camera lifespan
         with ReachyMini() as m:
             mcp = FastMCP("Reachy Mini Robot")
@@ -62,7 +64,3 @@ def main():
         mcp = FastMCP("Reachy Mini Robot", lifespan=lifespan)
         register_robot_tools(mcp, lambda: mini)
         mcp.run(transport="streamable-http", port=port, stateless_http=True)
-
-
-if __name__ == "__main__":
-    main()
