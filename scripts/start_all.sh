@@ -32,7 +32,7 @@ sleep 8
 
 # Start MCP server
 echo "Starting MCP server..."
-python -m server > scripts/logs/mcp_server.log 2>&1 &
+python -u -m server > scripts/logs/mcp_server.log 2>&1 &
 MCP_PID=$!
 echo $MCP_PID >> "$PID_FILE"
 echo "  ✓ MCP server started (PID: $MCP_PID)"
@@ -42,7 +42,7 @@ sleep 5
 
 # Start RAG agent
 echo "Starting RAG agent..."
-python -m client > scripts/logs/client.log 2>&1 &
+python -u -m client > scripts/logs/client.log 2>&1 &
 AGENT_PID=$!
 echo $AGENT_PID >> "$PID_FILE"
 echo "  ✓ RAG agent started (PID: $AGENT_PID)"

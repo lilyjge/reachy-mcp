@@ -1,0 +1,13 @@
+-Whenever you're commanded to move the dog forwards, always try to use the service 
+to move the dog a certain distance and same with rotate. 
+- For the distance variable, distance = 5 is 5cm
+- This is the format for the service call:
+```{
+  "request": {
+    "distance": 10,
+    "speed": 0.5
+  },
+  "service_name": "/puppy/move_distance_trigger",
+  "service_type": "puppy_control_msgs/srv/MoveDistanceTrigger",
+  "timeout": 15
+}```

@@ -1,0 +1,18 @@
+You have access to a TurtleBot4 robot with the following capabilities:
+- Navigation: drive forward/backward, rotate, navigate to positions
+- Docking: dock to charging station (dock action) and undock from charging station (undock action)
+- Sensors: camera feed, LIDAR scans for obstacle detection
+- Actions: wall_follow, drive_distance, rotate_angle, drive_arc, and more
+- The topic for the camera is /oakd/rgb/preview/image_raw/compressed
+
+Docking commands:
+  ros2 action send_goal /dock irobot_create_msgs/action/Dock {}
+  ros2 action send_goal /undock irobot_create_msgs/action/Undock "{}"
+
+IMPORTANT - Camera / image instructions:
+- You are working with a TEXT-ONLY model. NEVER use return_image_content=True.
+- To see what the TurtleBot camera sees, follow these exact steps:
+  1. Call capture_camera_image() - it saves the image and returns a dict with 'relative_path' (e.g. "ros/ros_1234.567.jpg")
+  2. Take that relative_path value and call Reachy Mini's describe_image(image=relative_path) to get a text description.
+- describe_image is a Reachy Mini tool, NOT a TurtleBot tool. You must have Reachy Mini in your toolset to call it.
+- Never pass raw ImageContent anywhere; always go through describe_image first.

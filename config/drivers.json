@@ -1,20 +1,20 @@
 {
-    "mcpServers": {
-      "reachy-mini": {
-        "url": "http://localhost:5001/mcp",
-        "description": "Reachy Mini robot tools, primary user interface for the operating system"
-      },
-      "turtlebot4": {
-        "url": "http://localhost:9090/mcp",
-        "description": "ROS MCP server for TurtleBot4, can explore the environment"
-      },
-      "dog": {
-        "url": "http://localhost:8080/mcp",
-        "description": "ROS MCP server for robot dog, can explore the environment"
-      },
-      "smart-light": {
-        "url": "http://localhost:7070/mcp",
-        "description": "Smart Light controls, can control a smart lamp"
-      }
+  "mcpServers": {
+    "reachy-mini": {
+      "url": "http://localhost:5001/mcp",
+      "description": "Reachy Mini robot tools, primary user interface for the operating system"
+    },
+    "dog": {
+      "url": "http://localhost:9090/mcp",
+      "description": "ROS MCP server for robot dog, can explore the environment"
+    },
+    "turtlebot": {
+      "url": "http://localhost:9091/mcp",
+      "description": "ROS MCP server for robot turtlebot, can explore the environment and capture camera images. Camera tasks require Reachy Mini to describe images via describe_image tool."
+    },
+    "Kasa Lightbulb Controller": {
+      "url": "http://localhost:5002/mcp",
+      "description": "Smart Light controls, can control a smart lamp"
     }
+  }
 }
