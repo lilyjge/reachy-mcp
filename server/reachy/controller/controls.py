@@ -124,6 +124,10 @@ def listening_worker(mini: ReachyMini, stop: threading.Event, listening: threadi
         listening_pose(mini, listening)
         time.sleep(0.4)  # small delay to avoid busy looping
 
+def _get_available_emotions() -> list[str]:
+    """Return list of available emotion names."""
+    return list(moves_.keys())
+
 def _play_emotion(emotion: str) -> str:
     """Play an emotion from the recorded moves dataset."""
     _stop_all_moves()

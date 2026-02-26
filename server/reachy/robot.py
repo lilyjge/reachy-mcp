@@ -53,6 +53,12 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         return "Reset done."
 
     @mcp.tool()
+    def list_emotions() -> list[str]:
+        """List the available emotions that can be played."""
+        _log_tool_entered("list_emotions")
+        return controller._get_available_emotions()
+
+    @mcp.tool()
     def play_emotion(emotion: str) -> str:
         """Play an emotion.
 
