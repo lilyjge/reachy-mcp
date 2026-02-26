@@ -180,7 +180,7 @@ def move_to_audio(mini: ReachyMini, doa: tuple[float, bool] | None = None) -> st
                 f" -> head_yaw: {head_yaw:.2f} degrees"
             )
             _go_to(head_yaw=head_yaw, duration=2)
-            center_to_face(mini)
+            center_to_face(mini, head_yaw=head_yaw)
         else:
             print("DoA data is invalid.")
     else:
@@ -191,7 +191,7 @@ def move_to_audio(mini: ReachyMini, doa: tuple[float, bool] | None = None) -> st
 
 # --- Face-centering constants ---
 # Max refinement iterations to avoid infinite loops.
-_CENTER_MAX_ITERS = 30
+_CENTER_MAX_ITERS = 10
 # Middle target box size as fraction of frame dimensions.
 _CENTER_BOX_FRAC = 0.20
 # Fixed incremental nudges (degrees) applied each iteration.
@@ -221,24 +221,28 @@ def _detect_largest_face(frame: np.ndarray) -> tuple[int, int, int, int] | None:
     idx = int(np.argmax(areas))
     return tuple(faces[idx])  # type: ignore[return-value]
 
-def _wait_for_moves_to_finish(timeout: float = 3) -> bool:
+def _wait_for_moves_to_finish(timeout: float = 3, sleep_timer: float = 0.5) -> bool:
     """Wait until daemon reports no running moves. Returns False on timeout."""
     deadline = time.time() + timeout
     while _get_running_moves():
         if time.time() >= deadline:
             return False
-        time.sleep(0.5)
+        time.sleep(sleep_timer)
     return True
 
 def center_to_face(
     mini: ReachyMini,
+    head_yaw: float | None = None,
 ) -> str:
     """Capture frames and nudge yaw/pitch until face center reaches middle box."""
+    print("Centering head to face...")
+    _wait_for_moves_to_finish(timeout=8)
     curr_pos = _get_head_pose()
-    yaw = curr_pos["yaw"]
+    yaw = curr_pos["yaw"] if head_yaw is None else head_yaw
     pitch = curr_pos["pitch"]
+    no_face_iters = 0
 
-    while True:
+    while True and no_face_iters < _CENTER_MAX_ITERS:
         _ = mini.media.get_frame()
         frame = mini.media.get_frame()
         if frame is None:
@@ -258,7 +262,10 @@ def center_to_face(
         except Exception as e:
             print(f"Error during face detection: {e}")
             continue
-
+        if face is None:
+            print("No face detected in frame.")
+            no_face_iters += 1
+            continue
         try:
             x, y, fw, fh = face
         except TypeError:
@@ -286,4 +293,4 @@ def center_to_face(
         _wait_for_moves_to_finish()
         _go_to(head_yaw=yaw, head_pitch=pitch, duration=0.02)
 
-    return "Face found and head adjusted towards it (max iterations reached)."
+    print("Moved head to center on face.")

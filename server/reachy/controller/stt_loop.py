@@ -279,9 +279,10 @@ def _wait_for_trigger(
 
     def _eye_contact_watcher():
         if wait_for_eye_contact(mini, combined_stop, poll_interval=0.08):
-            center_to_face(mini)
-            triggered.set()
             print("trigger: eye contact")
+            if not combined_stop.is_set():
+                triggered.set()
+                center_to_face(mini)
 
     threading.Thread(target=_sync_combined, daemon=True).start()
     threading.Thread(target=_eye_contact_watcher, daemon=True).start()
@@ -301,8 +302,9 @@ def _wait_for_trigger(
         if text and WAKE_WORD in text.lower():
             utterance_queue.queue.clear()  # clear any pending utterances, we only care about the trigger
             print("trigger: wake word")
-            move_to_audio(mini, doa)
-            triggered.set()
+            if not combined_stop.is_set():
+                triggered.set()
+                move_to_audio(mini, doa)
             break
 
     return triggered.is_set() and not stop_event.is_set()
@@ -365,6 +367,7 @@ def run_stt_loop(mini: ReachyMini, stt_url: str | None = None, stop_event: threa
         if not _wait_for_trigger(mini, utterance_queue, stop):
             continue
         listening.set()  # start the listening pose thread while we wait for the user to speak after the trigger
+        print("capture triggered, waiting for speech...")
         while audio is None:
             try:
                 audio, sr, _ = utterance_queue.get(timeout=10)
