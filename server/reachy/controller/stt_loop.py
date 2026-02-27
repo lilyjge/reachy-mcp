@@ -285,7 +285,7 @@ def _wait_for_trigger(
                 center_to_face(mini)
 
     threading.Thread(target=_sync_combined, daemon=True).start()
-    threading.Thread(target=_eye_contact_watcher, daemon=True).start()
+    # threading.Thread(target=_eye_contact_watcher, daemon=True).start()        ---- UNCOMMENT FOR EYE CONTACT TRIGGER ---
 
     # Record audio in a loop and check each utterance for the wake word.
     while not combined_stop.is_set():
