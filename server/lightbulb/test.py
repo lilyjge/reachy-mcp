@@ -2,7 +2,7 @@ import asyncio
 from kasa import Discover
 
 async def main():
-    dev = await Discover.discover_single("10.120.6.140", username="kushaldeepm@gmail.com", password="Mark1234?")
+    dev = await Discover.discover_single("10.120.6.140", username="", password="")
     await dev.update()
     
     print(f"Device: {dev.alias}")
