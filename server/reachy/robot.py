@@ -53,16 +53,24 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         return "Reset done."
 
     @mcp.tool()
-    def move_head_left() -> str:
-        """Move the head to the left."""
-        _log_tool_entered("move_head_left")
-        return controller.move_head_left()
+    def move_head_left(multiple: int = 1) -> str:
+        """Move the head to the left.
+        
+        Args:
+            multiple: The number of 30-degree increments to move the head left MAX 3.
+        """
+        _log_tool_entered(f"move_head_left {30 * multiple} degrees")
+        return controller.move_head_left(multiple)
 
     @mcp.tool()
-    def move_head_right() -> str:
-        """Move the head to the right."""
-        _log_tool_entered("move_head_right")
-        return controller.move_head_right()
+    def move_head_right(multiple: int = 1) -> str:
+        """Move the head to the right.
+        
+        Args:
+            multiple: The number of 30-degree increments to move the head right MAX 3.
+        """
+        _log_tool_entered(f"move_head_right {30 * multiple} degrees")
+        return controller.move_head_right(multiple)
 
     @mcp.tool()
     def list_emotions() -> list[str]:

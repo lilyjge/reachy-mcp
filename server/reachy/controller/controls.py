@@ -27,7 +27,7 @@ recorded_emotions = RecordedMoves(_EMOTIONS_DATASET)
 _MOVE_TYPES_PATH = Path(__file__).parent / "move_types.json"
 moves_: dict[str, list[str]] = json.loads(_MOVE_TYPES_PATH.read_text())
 
-_HEAD_MOVE_INCREMENT = 20
+_HEAD_MOVE_INCREMENT = 45
 
 def _get_running_moves() -> list[dict[str, str]]:
     """Return list of currently running moves from the daemon."""
@@ -86,10 +86,10 @@ def _go_to(head_x: float = 0,
         resp = _daemon.post("/move/goto", json=payload)
         resp.raise_for_status()
 
-def move_head_left() -> str:
+def move_head_left(multiple: int = 1) -> str:
     """Example function to move head left."""
     pose = _get_head_pose()
-    pose["yaw"] += math.radians(_HEAD_MOVE_INCREMENT)
+    pose["yaw"] += math.radians(_HEAD_MOVE_INCREMENT * multiple)
     pose["pitch"] = 0
     pose["roll"] = 0
     pose['x'] = 0
@@ -98,10 +98,10 @@ def move_head_left() -> str:
     target = {"target_head_pose": pose}
     return _set_target(target)
 
-def move_head_right() -> str:
+def move_head_right(multiple: int = 1) -> str:
     """Example function to move head right."""
     pose = _get_head_pose()
-    pose["yaw"] -= math.radians(_HEAD_MOVE_INCREMENT)
+    pose["yaw"] -= math.radians(_HEAD_MOVE_INCREMENT * multiple)
     pose["pitch"] = 0
     pose["roll"] = 0
     pose['x'] = 0
