@@ -146,7 +146,7 @@ def main_app():
         return {"output": response["output"]}
 
     # Simple chat UI
-    _ui_path = Path(__file__).resolve().parent / "client_ui.html"
+    _ui_path = Path(__file__).resolve().parent / "chat" / "client_ui.html"
 
     @app.get("/")
     def index():

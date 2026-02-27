@@ -38,8 +38,8 @@ flowchart LR
     end
 
     %% Entrypoints into rosaOS
-    ReachyUI -->|speech, vision| Kernel
-    WebUI -->|HTTP /chat| Kernel
+    ReachyUI -->|/stt| Kernel
+    WebUI -->|/chat| Kernel
 
     %% MCP client/server relationships
     Kernel --> Agents

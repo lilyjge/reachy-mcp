@@ -51,19 +51,38 @@ def init_model() -> None:
             logger.warning("Local LLM endpoint not reachable at %s: %s", base_url, e)
             raise
     else:
-        groq_model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
-        api_key = os.environ.get("GROQ_API_KEY", "").strip()
-        if not api_key:
-            raise SystemExit(
-                "GROQ_API_KEY is not set. Get an API key from https://console.groq.com/keys and set:\n"
-                "  export GROQ_API_KEY=your_key   # macOS/Linux\n"
-                "  set GROQ_API_KEY=your_key      # Windows"
+        provider = os.environ.get("LLM_PROVIDER", "groq").strip().lower()
+        if provider == "anthropic":
+            anthropic_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
+            api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+            if not api_key:
+                raise SystemExit(
+                    "ANTHROPIC_API_KEY is not set. Get an API key from https://console.anthropic.com and set:\n"
+                    "  export ANTHROPIC_API_KEY=your_key   # macOS/Linux\n"
+                    "  set ANTHROPIC_API_KEY=your_key      # Windows"
+                )
+            from pydantic_ai.models.anthropic import AnthropicModel
+            from pydantic_ai.providers.anthropic import AnthropicProvider
+
+            model = AnthropicModel(
+                anthropic_model,
+                provider=AnthropicProvider(api_key=api_key),
             )
-        model = GroqModel(
-            groq_model,
-            provider=GroqProvider(api_key=api_key),
-        )
-        print("Using Groq model:", groq_model)
+            print("Using Anthropic model:", anthropic_model)
+        else:
+            groq_model = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+            api_key = os.environ.get("GROQ_API_KEY", "").strip()
+            if not api_key:
+                raise SystemExit(
+                    "GROQ_API_KEY is not set. Get an API key from https://console.groq.com/keys and set:\n"
+                    "  export GROQ_API_KEY=your_key   # macOS/Linux\n"
+                    "  set GROQ_API_KEY=your_key      # Windows"
+                )
+            model = GroqModel(
+                groq_model,
+                provider=GroqProvider(api_key=api_key),
+            )
+            print("Using Groq model:", groq_model)
 
 def init_mcp_servers() -> None:
     global all_mcp_servers

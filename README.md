@@ -5,7 +5,7 @@ ROS Agentic Operating System: Control robots with LLMs through MCP with Reachy M
 ## Requirements
 Using Reachy Mini Lite for easy media stream.
 
-The client supports either a **local OpenAI-compatible LLM** (e.g. vLLM) or the **Groq API**. Choose one via CLI or environment variables.
+The client supports a **local OpenAI-compatible LLM** (e.g. vLLM), the **Groq API**, or the **Anthropic API**. Choose one via CLI or environment variables.
 
 ### Local LLM (OpenAI-compatible endpoint)
 For local inference, run an OpenAI-compatible server (e.g. [vLLM](https://docs.vllm.ai/en/latest/getting_started/quickstart/)) and point the client at it:
@@ -82,12 +82,14 @@ python -m server --tts-elevenlabs --tts-voice M4zkunnpRihDKTNF0D7f # Use ElevenL
 ```
 
 Start the operating system's client (default port 8765). 
-To use your own OpenAI compatible endpoint for the agents, start the client with `--local` and optionally `--endpoint` (port, default 6000):
+To use your own OpenAI compatible endpoint for the agents, start the client with `--local` and optionally `--endpoint` (port, default 6000). 
+To use the Anthropic API, start the client with `--anthropic` and optionally specify a model with `--model`. 
 
 ```bash
 python -m client                    # Groq (requires GROQ_API_KEY)
 python -m client --local             # Local LLM at port 6000
 python -m client --model moonshotai/kimi-k2-instruct-0905 # Specify Groq model
+python -m client --anthropic --model claude-sonnet-4-6 # Anthropic API
 ```
 
 Now you can talk to the Reachy Mini directly.
@@ -112,6 +114,9 @@ All ports and the LLM source can be overridden by environment variables so scrip
 | `LOCAL_LLM_PORT` | `6000` | Port of local LLM when `LOCAL_LLM` is set. |
 | `LOCAL_LLM_ENDPOINT` | — | Full base URL (e.g. `https://localhost:6000/v1`) overrides port. |
 | `GROQ_MODEL` | `openai/gpt-oss-120b` | Groq model when not using local LLM. |
+| `LLM_PROVIDER` | `groq` | Remote LLM provider when not using local LLM. One of `groq` or `anthropic`. Usually set via CLI (`python -m client` flags). |
+| `ANTHROPIC_API_KEY` | — | **Required** when using Anthropic (`--anthropic` or `LLM_PROVIDER=anthropic`). Anthropic API key from `https://console.anthropic.com`. |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-6` | Anthropic model name when `LLM_PROVIDER=anthropic` (overridden by `--model` when using `--anthropic`). |
 | `RAG_AGENT_PORT` | `8765` | Client app (kernel + chat) port. |
 | `RAG_AGENT_URL` | — | Full base URL for chat CLI (e.g. `http://localhost:8765`). |
 | `PROCESS_SERVER_PORT` | `7001` | Process manager MCP server port. |
