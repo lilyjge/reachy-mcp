@@ -53,6 +53,18 @@ def register_robot_tools(mcp: FastMCP, get_mini: Callable[[], ReachyMini]):
         return "Reset done."
 
     @mcp.tool()
+    def move_head_left() -> str:
+        """Move the head to the left."""
+        _log_tool_entered("move_head_left")
+        return controller.move_head_left()
+
+    @mcp.tool()
+    def move_head_right() -> str:
+        """Move the head to the right."""
+        _log_tool_entered("move_head_right")
+        return controller.move_head_right()
+
+    @mcp.tool()
     def list_emotions() -> list[str]:
         """List the available emotions that can be played."""
         _log_tool_entered("list_emotions")
